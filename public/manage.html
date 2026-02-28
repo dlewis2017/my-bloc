@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CivicPulse — Manage Profile</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f9fafb; color: #111827; }
+    .container { max-width: 520px; margin: 0 auto; padding: 32px 20px; }
+    .header { text-align: center; margin-bottom: 32px; }
+    .header h1 { font-size: 28px; margin-bottom: 4px; }
+    .header p { color: #6b7280; font-size: 15px; }
+    .card { background: #fff; border-radius: 12px; padding: 28px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    label { display: block; font-weight: 600; font-size: 14px; margin-bottom: 6px; margin-top: 20px; }
+    label:first-of-type { margin-top: 0; }
+    .email-display { padding: 10px 12px; background: #f3f4f6; border-radius: 8px; font-size: 15px; color: #6b7280; }
+    select { width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 15px; background: #fff; }
+    .radio-group, .checkbox-group { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+    .radio-group label, .checkbox-group label { font-weight: 400; display: flex; align-items: center; gap: 6px; background: #f3f4f6; padding: 8px 14px; border-radius: 8px; cursor: pointer; margin: 0; font-size: 14px; }
+    .radio-group label:has(input:checked), .checkbox-group label:has(input:checked) { background: #eff6ff; border: 1px solid #bfdbfe; }
+    .radio-group label { border: 1px solid transparent; }
+    .checkbox-group label { border: 1px solid transparent; }
+    .kids-row { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+    .kids-row label { margin: 0; font-weight: 400; font-size: 14px; }
+    button { width: 100%; margin-top: 28px; padding: 12px; background: #2563eb; color: #fff; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; }
+    button:hover { background: #1d4ed8; }
+    button:disabled { background: #93c5fd; cursor: not-allowed; }
+    .msg { margin-top: 16px; padding: 12px; border-radius: 8px; font-size: 14px; text-align: center; }
+    .msg.success { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
+    .msg.error { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
+    .loading { text-align: center; padding: 48px; color: #6b7280; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>CivicPulse</h1>
+      <p>Update your profile to get more relevant digests.</p>
+    </div>
+    <div class="card">
+      <div id="loading" class="loading">Loading your profile...</div>
+      <form id="profile-form" style="display:none;">
+        <label>Email</label>
+        <div class="email-display" id="email-display"></div>
+
+        <label for="ward">Ward</label>
+        <select id="ward" name="ward" required>
+          <option value="">Select your ward</option>
+          <option value="A">Ward A</option>
+          <option value="B">Ward B</option>
+          <option value="C">Ward C</option>
+          <option value="D">Ward D</option>
+          <option value="E">Ward E</option>
+          <option value="F">Ward F</option>
+        </select>
+
+        <label>Housing</label>
+        <div class="radio-group">
+          <label><input type="radio" name="housing" value="Renter" required><span>Renter</span></label>
+          <label><input type="radio" name="housing" value="Homeowner"><span>Homeowner</span></label>
+          <label><input type="radio" name="housing" value="Section 8"><span>Section 8</span></label>
+        </div>
+
+        <label>Transportation</label>
+        <div class="radio-group">
+          <label><input type="radio" name="transport" value="No car" required><span>No car</span></label>
+          <label><input type="radio" name="transport" value="Car owner"><span>Car owner</span></label>
+          <label><input type="radio" name="transport" value="Transit dependent"><span>Transit dependent</span></label>
+        </div>
+
+        <label>Children</label>
+        <div class="kids-row">
+          <input type="checkbox" id="has_kids" name="has_kids">
+          <label for="has_kids">I have school-age children</label>
+        </div>
+
+        <label>Interests (select all that apply)</label>
+        <div class="checkbox-group">
+          <label><input type="checkbox" name="interests" value="rent control"><span>Rent control</span></label>
+          <label><input type="checkbox" name="interests" value="transit"><span>Transit</span></label>
+          <label><input type="checkbox" name="interests" value="noise"><span>Noise</span></label>
+          <label><input type="checkbox" name="interests" value="schools"><span>Schools</span></label>
+          <label><input type="checkbox" name="interests" value="property tax"><span>Property tax</span></label>
+          <label><input type="checkbox" name="interests" value="parking"><span>Parking</span></label>
+          <label><input type="checkbox" name="interests" value="development"><span>Development</span></label>
+        </div>
+
+        <button type="submit">Save Changes</button>
+      </form>
+      <div id="msg" class="msg" style="display:none;"></div>
+    </div>
+  </div>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const userId = params.get('user');
+    const form = document.getElementById('profile-form');
+    const loading = document.getElementById('loading');
+    const msg = document.getElementById('msg');
+
+    if (!userId) {
+      loading.textContent = 'Invalid link. Please use the link from your digest email.';
+    } else {
+      loadProfile();
+    }
+
+    async function loadProfile() {
+      try {
+        const res = await fetch(`/api/profile?user=${userId}`);
+        if (!res.ok) {
+          loading.textContent = 'Profile not found.';
+          return;
+        }
+        const profile = await res.json();
+
+        document.getElementById('email-display').textContent = profile.email;
+        form.ward.value = profile.ward || '';
+
+        if (profile.housing) {
+          const radio = form.querySelector(`input[name="housing"][value="${profile.housing}"]`);
+          if (radio) radio.checked = true;
+        }
+        if (profile.transport) {
+          const radio = form.querySelector(`input[name="transport"][value="${profile.transport}"]`);
+          if (radio) radio.checked = true;
+        }
+        form.has_kids.checked = profile.has_kids || false;
+
+        if (Array.isArray(profile.interests)) {
+          profile.interests.forEach(interest => {
+            const cb = form.querySelector(`input[name="interests"][value="${interest}"]`);
+            if (cb) cb.checked = true;
+          });
+        }
+
+        loading.style.display = 'none';
+        form.style.display = 'block';
+      } catch (err) {
+        loading.textContent = 'Failed to load profile. Please try again.';
+      }
+    }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = form.querySelector('button');
+      btn.disabled = true;
+      btn.textContent = 'Saving...';
+      msg.style.display = 'none';
+
+      const interests = Array.from(form.querySelectorAll('input[name="interests"]:checked')).map(el => el.value);
+      const housing = form.querySelector('input[name="housing"]:checked');
+      const transport = form.querySelector('input[name="transport"]:checked');
+
+      const body = {
+        ward: form.ward.value,
+        housing: housing ? housing.value : undefined,
+        transport: transport ? transport.value : undefined,
+        has_kids: form.has_kids.checked,
+        interests
+      };
+
+      try {
+        const res = await fetch(`/api/profile?user=${userId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+
+        if (res.ok) {
+          msg.className = 'msg success';
+          msg.textContent = 'Profile updated! Your next digest will reflect these changes.';
+          msg.style.display = 'block';
+        } else {
+          const data = await res.json();
+          msg.className = 'msg error';
+          msg.textContent = data.error || 'Failed to save changes.';
+          msg.style.display = 'block';
+        }
+      } catch (err) {
+        msg.className = 'msg error';
+        msg.textContent = 'Network error. Please try again.';
+        msg.style.display = 'block';
+      }
+
+      btn.disabled = false;
+      btn.textContent = 'Save Changes';
+    });
+  </script>
+</body>
+</html>

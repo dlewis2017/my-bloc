@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CivicPulse — Sign Up</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f9fafb; color: #111827; }
+    .container { max-width: 520px; margin: 0 auto; padding: 32px 20px; }
+    .header { text-align: center; margin-bottom: 32px; }
+    .header h1 { font-size: 28px; margin-bottom: 4px; }
+    .header p { color: #6b7280; font-size: 15px; }
+    .card { background: #fff; border-radius: 12px; padding: 28px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    label { display: block; font-weight: 600; font-size: 14px; margin-bottom: 6px; margin-top: 20px; }
+    label:first-of-type { margin-top: 0; }
+    input[type="email"] { width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 15px; }
+    input[type="email"]:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.15); }
+    select { width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 15px; background: #fff; }
+    .radio-group, .checkbox-group { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+    .radio-group label, .checkbox-group label { font-weight: 400; display: flex; align-items: center; gap: 6px; background: #f3f4f6; padding: 8px 14px; border-radius: 8px; cursor: pointer; margin: 0; font-size: 14px; }
+    .radio-group input:checked + span, .checkbox-group input:checked + span { font-weight: 600; }
+    .radio-group label:has(input:checked), .checkbox-group label:has(input:checked) { background: #eff6ff; border: 1px solid #bfdbfe; }
+    .radio-group label { border: 1px solid transparent; }
+    .checkbox-group label { border: 1px solid transparent; }
+    .kids-row { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+    .kids-row label { margin: 0; font-weight: 400; font-size: 14px; }
+    button { width: 100%; margin-top: 28px; padding: 12px; background: #2563eb; color: #fff; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; }
+    button:hover { background: #1d4ed8; }
+    button:disabled { background: #93c5fd; cursor: not-allowed; }
+    .msg { margin-top: 16px; padding: 12px; border-radius: 8px; font-size: 14px; text-align: center; }
+    .msg.success { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
+    .msg.error { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>CivicPulse</h1>
+      <p>Get a personalized weekly digest of Jersey City government activity that matters to you.</p>
+    </div>
+    <div class="card">
+      <form id="signup-form">
+        <label for="email">Email</label>
+        <input type="email" id="email" name="email" required placeholder="you@example.com">
+
+        <label for="ward">Ward</label>
+        <select id="ward" name="ward" required>
+          <option value="">Select your ward</option>
+          <option value="A">Ward A</option>
+          <option value="B">Ward B</option>
+          <option value="C">Ward C</option>
+          <option value="D">Ward D</option>
+          <option value="E">Ward E</option>
+          <option value="F">Ward F</option>
+        </select>
+
+        <label>Housing</label>
+        <div class="radio-group">
+          <label><input type="radio" name="housing" value="Renter" required><span>Renter</span></label>
+          <label><input type="radio" name="housing" value="Homeowner"><span>Homeowner</span></label>
+          <label><input type="radio" name="housing" value="Section 8"><span>Section 8</span></label>
+        </div>
+
+        <label>Transportation</label>
+        <div class="radio-group">
+          <label><input type="radio" name="transport" value="No car" required><span>No car</span></label>
+          <label><input type="radio" name="transport" value="Car owner"><span>Car owner</span></label>
+          <label><input type="radio" name="transport" value="Transit dependent"><span>Transit dependent</span></label>
+        </div>
+
+        <label>Children</label>
+        <div class="kids-row">
+          <input type="checkbox" id="has_kids" name="has_kids">
+          <label for="has_kids">I have school-age children</label>
+        </div>
+
+        <label>Interests (select all that apply)</label>
+        <div class="checkbox-group">
+          <label><input type="checkbox" name="interests" value="rent control"><span>Rent control</span></label>
+          <label><input type="checkbox" name="interests" value="transit"><span>Transit</span></label>
+          <label><input type="checkbox" name="interests" value="noise"><span>Noise</span></label>
+          <label><input type="checkbox" name="interests" value="schools"><span>Schools</span></label>
+          <label><input type="checkbox" name="interests" value="property tax"><span>Property tax</span></label>
+          <label><input type="checkbox" name="interests" value="parking"><span>Parking</span></label>
+          <label><input type="checkbox" name="interests" value="development"><span>Development</span></label>
+        </div>
+
+        <button type="submit">Subscribe</button>
+      </form>
+      <div id="msg" class="msg" style="display:none;"></div>
+    </div>
+  </div>
+
+  <script>
+    const form = document.getElementById('signup-form');
+    const msg = document.getElementById('msg');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = form.querySelector('button');
+      btn.disabled = true;
+      btn.textContent = 'Subscribing...';
+      msg.style.display = 'none';
+
+      const interests = Array.from(form.querySelectorAll('input[name="interests"]:checked')).map(el => el.value);
+      const housing = form.querySelector('input[name="housing"]:checked');
+      const transport = form.querySelector('input[name="transport"]:checked');
+
+      const body = {
+        email: form.email.value,
+        ward: form.ward.value,
+        housing: housing ? housing.value : '',
+        transport: transport ? transport.value : '',
+        has_kids: form.has_kids.checked,
+        interests
+      };
+
+      try {
+        const res = await fetch('/api/signup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        const data = await res.json();
+
+        if (res.ok) {
+          msg.className = 'msg success';
+          msg.textContent = "You're subscribed! You'll receive your first digest this Thursday.";
+          msg.style.display = 'block';
+          form.reset();
+        } else {
+          msg.className = 'msg error';
+          msg.textContent = data.error || 'Something went wrong.';
+          msg.style.display = 'block';
+        }
+      } catch (err) {
+        msg.className = 'msg error';
+        msg.textContent = 'Network error. Please try again.';
+        msg.style.display = 'block';
+      }
+
+      btn.disabled = false;
+      btn.textContent = 'Subscribe';
+    });
+  </script>
+</body>
+</html>
