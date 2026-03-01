@@ -107,6 +107,7 @@ function buildItemHtml(item, userId, ward) {
         <span style="font-size:14px;color:${catColor};font-weight:600;">${item.personal_impact}</span>
       </div>
       <p style="font-size:13px;color:#6b7280;margin:8px 0;">${item.status_context}</p>
+      ${item.location ? `<p style="margin:8px 0;"><a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(item.location + ', Jersey City, NJ')}" style="font-size:13px;color:#2563eb;text-decoration:none;">&#x1F4CD; ${item.location}</a></p>` : ''}
       ${deadlineHtml}
       ${item.source_url ? `<p style="margin:8px 0;"><a href="${item.source_url}" style="font-size:13px;color:#2563eb;text-decoration:none;">View full document &rarr;</a></p>` : ''}
       <div style="margin-top:12px;">

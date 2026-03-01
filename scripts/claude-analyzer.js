@@ -36,6 +36,7 @@ Return this exact JSON structure:
   "relevance_score": <integer 1-10>,
   "current_status": "<INTRODUCED|AMENDED|COMMITTEE|VOTED|PASSED|FAILED>",
   "status_context": "one sentence explaining what this status means in plain English, e.g. 'This passed 6-3 at Wednesday's meeting and is now law.'",
+  "location": "specific street address or intersection mentioned in the document, e.g. '20 Van Wagenen Ave' or 'Journal Square Plaza'. null if no specific location or if citywide.",
   "next_vote_date": "YYYY-MM-DD or null — only include if the document mentions a specific upcoming vote/hearing date. Do NOT guess or make one up.",
   "action_available": <true|false>
 }
