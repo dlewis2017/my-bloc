@@ -8,7 +8,13 @@ const supabase = createClient(
 const VALID_WARDS = ['A', 'B', 'C', 'D', 'E', 'F'];
 const VALID_HOUSING = ['Renter', 'Homeowner', 'Section 8'];
 const VALID_TRANSPORT = ['No car', 'Car owner', 'Transit dependent'];
-const VALID_INTERESTS = ['rent control', 'transit', 'noise', 'schools', 'property tax', 'parking', 'development'];
+const VALID_INTERESTS = [
+  'rent control', 'property tax', 'parking', 'noise', 'utilities',
+  'transit', 'bike lanes', 'roads', 'sidewalks',
+  'schools', 'parks', 'public safety', 'senior services', 'youth programs',
+  'development', 'zoning', 'jobs', 'small business', 'affordable housing'
+];
+const VALID_INCOME = ['Under $50K', '$50K-$100K', '$100K-$200K', 'Over $200K'];
 
 module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -28,7 +34,7 @@ module.exports = async function handler(req, res) {
   if (req.method === 'GET') {
     const { data, error } = await supabase
       .from('profiles')
-      .select('id, email, ward, housing, transport, has_kids, interests, active')
+      .select('id, email, ward, housing, transport, income, has_kids, interests, active')
       .eq('id', user)
       .single();
 
@@ -40,7 +46,7 @@ module.exports = async function handler(req, res) {
   }
 
   if (req.method === 'PUT') {
-    const { ward, housing, transport, has_kids, interests } = req.body || {};
+    const { ward, housing, transport, income, has_kids, interests } = req.body || {};
 
     const updates = {};
 
@@ -63,6 +69,10 @@ module.exports = async function handler(req, res) {
         return res.status(400).json({ error: `Transport must be one of: ${VALID_TRANSPORT.join(', ')}` });
       }
       updates.transport = transport;
+    }
+
+    if (income !== undefined) {
+      updates.income = income && VALID_INCOME.includes(income) ? income : null;
     }
 
     if (has_kids !== undefined) {

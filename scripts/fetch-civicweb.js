@@ -1,7 +1,62 @@
 const { chromium } = require('playwright');
+const { PDFParse, VerbosityLevel } = require('pdf-parse');
 
 const CIVICWEB_BASE = 'https://cityofjerseycity.civicweb.net';
 const MEETING_LIST_URL = `${CIVICWEB_BASE}/Portal/MeetingInformation.aspx`;
+const MAX_PDF_TEXT_LENGTH = 15000;
+
+/**
+ * Extract the direct PDF download URL from a CivicWeb preview page.
+ * The preview page contains a "New Window" link with the actual PDF path.
+ */
+async function findPdfDownloadUrl(page, previewUrl) {
+  try {
+    await page.goto(previewUrl, { waitUntil: 'networkidle', timeout: 15000 });
+    return page.evaluate((base) => {
+      const links = Array.from(document.querySelectorAll('a'));
+      for (const link of links) {
+        const href = link.getAttribute('href') || '';
+        if (href.includes('/filepro/document/') && href.endsWith('.pdf')) {
+          return href.startsWith('http') ? href : `${base}${href}`;
+        }
+      }
+      return null;
+    }, CIVICWEB_BASE);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Download a PDF from a CivicWeb preview URL and extract its text.
+ * First finds the direct PDF link from the preview page, then downloads and parses.
+ * Returns extracted text (capped at MAX_PDF_TEXT_LENGTH) or null on failure.
+ */
+async function extractPdfText(page, requestContext, sourceUrl) {
+  try {
+    // Step 1: Find the actual PDF download URL from the preview page
+    const pdfUrl = await findPdfDownloadUrl(page, sourceUrl);
+    if (!pdfUrl) return null;
+
+    // Step 2: Download the PDF
+    const response = await requestContext.get(pdfUrl, { timeout: 15000 });
+    if (response.status() !== 200) return null;
+
+    const buffer = await response.body();
+    if (buffer.length < 500) return null;
+
+    // Step 3: Parse PDF text
+    const parser = new PDFParse({ data: buffer, verbosity: VerbosityLevel.ERRORS });
+    await parser.load();
+    const result = await parser.getText();
+    await parser.destroy();
+    const text = (result.text || '').replace(/\s+/g, ' ').trim();
+    return text.length > 0 ? text.slice(0, MAX_PDF_TEXT_LENGTH) : null;
+  } catch (err) {
+    console.warn(`  Failed to extract PDF from ${sourceUrl}: ${err.message}`);
+    return null;
+  }
+}
 
 /**
  * Fetch list of recent meetings from the CivicWeb portal.
@@ -102,7 +157,8 @@ async function fetchCivicWeb(maxMeetings = 2) {
   let browser;
   try {
     browser = await chromium.launch({ headless: true });
-    const page = await browser.newPage();
+    const context = await browser.newContext();
+    const page = await context.newPage();
 
     // Step 1: Get list of recent meetings
     const meetings = await fetchMeetingList(page);
@@ -142,6 +198,18 @@ async function fetchCivicWeb(maxMeetings = 2) {
       return true;
     });
 
+    // Step 3: Extract PDF text for each item
+    console.log(`\nExtracting PDF text for ${deduped.length} items...`);
+    let extracted = 0;
+    for (const item of deduped) {
+      item.full_text = await extractPdfText(page, context.request, item.source_url);
+      if (item.full_text) {
+        extracted++;
+        console.log(`  ${item.ordinance_num}: ${item.full_text.length} chars extracted`);
+      }
+    }
+    console.log(`Extracted text from ${extracted}/${deduped.length} PDFs`);
+
     return deduped;
   } catch (error) {
     console.error('Error fetching CivicWeb:', error.message);
@@ -151,7 +219,7 @@ async function fetchCivicWeb(maxMeetings = 2) {
   }
 }
 
-module.exports = { fetchCivicWeb, fetchMeetingList, findDocumentFolderUrl, parseDocumentFolder };
+module.exports = { fetchCivicWeb, fetchMeetingList, findDocumentFolderUrl, parseDocumentFolder, extractPdfText };
 
 // Run directly for testing
 if (require.main === module) {
@@ -161,7 +229,7 @@ if (require.main === module) {
       console.log(`\n${i + 1}. [${item.doc_type}] ${item.ordinance_num} — ${item.title}`);
       console.log(`   State: ${item.current_state}`);
       console.log(`   Meeting: ${item.meeting_date || 'N/A'}`);
-      console.log(`   URL: ${item.source_url}`);
+      console.log(`   Full text: ${item.full_text ? item.full_text.slice(0, 100) + '...' : 'N/A'}`);
     });
   });
 }

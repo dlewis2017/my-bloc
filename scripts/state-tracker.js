@@ -118,4 +118,30 @@ async function markNotified(ordinanceIds, client) {
   if (error) throw new Error(`Failed to mark notified: ${error.message}`);
 }
 
-module.exports = { generateStableId, upsertOrdinance, getUnnotifiedOrdinances, markNotified, VALID_TRANSITIONS };
+/**
+ * Get vote totals (up/down counts) for a list of ordinance IDs.
+ * @param {string[]} ordinanceIds
+ * @param {Object} [client] - optional Supabase client
+ * @returns {Object} { [ordinance_id]: { up: N, down: N } }
+ */
+async function getVoteTotals(ordinanceIds, client) {
+  if (!ordinanceIds.length) return {};
+  const db = client || supabase;
+
+  const { data, error } = await db
+    .from('votes')
+    .select('ordinance_id, vote')
+    .in('ordinance_id', ordinanceIds);
+
+  if (error) throw new Error(`Failed to fetch vote totals: ${error.message}`);
+
+  const totals = {};
+  for (const row of (data || [])) {
+    if (!totals[row.ordinance_id]) totals[row.ordinance_id] = { up: 0, down: 0 };
+    if (row.vote === 'up') totals[row.ordinance_id].up++;
+    else if (row.vote === 'down') totals[row.ordinance_id].down++;
+  }
+  return totals;
+}
+
+module.exports = { generateStableId, upsertOrdinance, getUnnotifiedOrdinances, markNotified, getVoteTotals, VALID_TRANSITIONS };

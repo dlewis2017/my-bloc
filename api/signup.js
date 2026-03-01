@@ -8,7 +8,13 @@ const supabase = createClient(
 const VALID_WARDS = ['A', 'B', 'C', 'D', 'E', 'F'];
 const VALID_HOUSING = ['Renter', 'Homeowner', 'Section 8'];
 const VALID_TRANSPORT = ['No car', 'Car owner', 'Transit dependent'];
-const VALID_INTERESTS = ['rent control', 'transit', 'noise', 'schools', 'property tax', 'parking', 'development'];
+const VALID_INTERESTS = [
+  'rent control', 'property tax', 'parking', 'noise', 'utilities',
+  'transit', 'bike lanes', 'roads', 'sidewalks',
+  'schools', 'parks', 'public safety', 'senior services', 'youth programs',
+  'development', 'zoning', 'jobs', 'small business', 'affordable housing'
+];
+const VALID_INCOME = ['Under $50K', '$50K-$100K', '$100K-$200K', 'Over $200K'];
 
 module.exports = async function handler(req, res) {
   // CORS headers for frontend fetch
@@ -24,7 +30,7 @@ module.exports = async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { email, ward, housing, transport, has_kids, interests } = req.body || {};
+  const { email, ward, housing, transport, income, has_kids, interests } = req.body || {};
 
   // Validate email
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
@@ -57,6 +63,7 @@ module.exports = async function handler(req, res) {
       ward,
       housing,
       transport,
+      income: income && VALID_INCOME.includes(income) ? income : null,
       has_kids: Boolean(has_kids),
       interests: validatedInterests,
       active: true

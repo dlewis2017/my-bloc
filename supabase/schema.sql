@@ -22,7 +22,8 @@ create table profiles (
   housing     text,                           -- Renter | Homeowner | Section 8
   transport   text,                           -- No car | Car owner | Transit dependent
   has_kids    boolean default false,
-  interests   text[],                         -- ['rent control','transit','noise','schools','property tax','parking','development']
+  income      text,                           -- 'Under $50K' | '$50K–$100K' | '$100K–$200K' | 'Over $200K' | 'Prefer not to say'
+  interests   text[],                         -- expanded tiered list
   active      boolean default true,
   created_at  timestamptz default now()
 );

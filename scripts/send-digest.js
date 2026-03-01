@@ -4,10 +4,21 @@ const { Resend } = require('resend');
 const resend = new Resend(process.env.RESEND_API_KEY);
 const VOTE_BASE_URL = process.env.VOTE_BASE_URL || 'https://your-app.vercel.app';
 
+// Jersey City Council — term Jan 2026 – Jan 2030
+// Email pattern: {FirstInitial}{LastName}@jcnj.org
+const COUNCIL_REPS = {
+  A: { name: 'Denise Ridley',     email: 'DRidley@jcnj.org' },
+  B: { name: 'Joel Brooks',       email: 'JBrooks@jcnj.org' },
+  C: { name: 'Thomas Zuppa Jr.',  email: 'TZuppa@jcnj.org' },
+  D: { name: 'Jake Ephros',       email: 'JEphros@jcnj.org' },
+  E: { name: 'Eleana Little',     email: 'ELittle@jcnj.org' },
+  F: { name: 'Frank E. Gilmore',  email: 'FGilmore@jcnj.org' },
+};
+
 /**
  * Build a single item block for the digest email.
  */
-function buildItemHtml(item, userId) {
+function buildItemHtml(item, userId, ward) {
   const statusColors = {
     INTRODUCED: '#3b82f6',
     AMENDED: '#f59e0b',
@@ -18,27 +29,86 @@ function buildItemHtml(item, userId) {
     WITHDRAWN: '#6b7280'
   };
 
+  const impactIcons = {
+    housing: '\u{1F3E0}',
+    money: '\u{1F4B0}',
+    transit: '\u{1F68C}',
+    schools: '\u{1F393}',
+    safety: '\u{1F6E1}\uFE0F',
+    environment: '\u{1F333}',
+    development: '\u{1F3D7}\uFE0F',
+    jobs: '\u{1F4BC}',
+    government: '\u{1F3DB}\uFE0F'
+  };
+
+  const impactColors = {
+    housing: '#7c3aed',
+    money: '#059669',
+    transit: '#2563eb',
+    schools: '#d97706',
+    safety: '#dc2626',
+    environment: '#16a34a',
+    development: '#9333ea',
+    jobs: '#0891b2',
+    government: '#6b7280'
+  };
+
   const statusColor = statusColors[item.current_status] || '#6b7280';
+  const category = item.impact_category || 'government';
+  const icon = impactIcons[category] || '\u{1F3DB}\uFE0F';
+  const catColor = impactColors[category] || '#6b7280';
 
   const voteUpUrl = `${VOTE_BASE_URL}/api/vote?user=${userId}&item=${encodeURIComponent(item.ordinance_id || '')}&vote=up`;
   const voteDownUrl = `${VOTE_BASE_URL}/api/vote?user=${userId}&item=${encodeURIComponent(item.ordinance_id || '')}&vote=down`;
 
-  const voteTotalsHtml = item.vote_totals
-    ? `<p style="font-size:12px;color:#9ca3af;margin:4px 0 0 0;">Last week: ${item.vote_totals.up || 0} supported &middot; ${item.vote_totals.down || 0} opposed</p>`
+  const totalVotes = item.vote_totals ? (item.vote_totals.up || 0) + (item.vote_totals.down || 0) : 0;
+  const voteTotalsHtml = totalVotes > 0
+    ? `<p style="font-size:12px;color:#6b7280;margin:8px 0 0 0;">\u{1F465} ${totalVotes} resident${totalVotes === 1 ? '' : 's'} weighed in &middot; ${item.vote_totals.up || 0} support &middot; ${item.vote_totals.down || 0} oppose</p>`
     : '';
+
+  // Deadline banner — only if next_vote_date exists
+  const deadlineHtml = item.next_vote_date
+    ? (() => {
+        const d = new Date(item.next_vote_date + 'T00:00:00');
+        const formatted = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        const daysLeft = Math.ceil((d - new Date()) / 86400000);
+        const urgency = daysLeft <= 7 ? '#dc2626' : '#d97706';
+        const label = daysLeft <= 0 ? 'Vote today' : daysLeft === 1 ? 'Vote tomorrow' : `Vote in ${daysLeft} days`;
+        return `<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:6px;padding:8px 12px;margin:8px 0;display:flex;align-items:center;gap:6px;">
+          <span style="font-size:14px;">\u{1F4C5}</span>
+          <span style="font-size:13px;color:${urgency};font-weight:600;">Final vote: ${formatted} &mdash; ${label}</span>
+        </div>`;
+      })()
+    : '';
+
+  // Visual relevance: filled vs empty dots (out of 10)
+  const score = Math.min(10, Math.max(0, item.relevance_score || 0));
+  const filled = '\u{25CF}';
+  const empty = '\u{25CB}';
+  const dotsHtml = `<span style="font-size:10px;letter-spacing:2px;color:${score >= 7 ? '#059669' : score >= 4 ? '#d97706' : '#9ca3af'};">${filled.repeat(score)}${empty.repeat(10 - score)}</span>`;
 
   return `
     <div style="background:#ffffff;border:1px solid #e5e7eb;border-radius:8px;padding:20px;margin-bottom:16px;">
-      <div style="margin-bottom:8px;">
-        <span style="display:inline-block;background:#f3f4f6;color:#374151;font-size:11px;font-weight:600;padding:2px 8px;border-radius:4px;text-transform:uppercase;margin-right:8px;">${item.doc_type || 'ordinance'}</span>
-        <span style="display:inline-block;background:${statusColor};color:#ffffff;font-size:11px;font-weight:600;padding:2px 8px;border-radius:4px;">${item.current_status}</span>
+      <div style="margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;">
+        <div>
+          <span style="display:inline-block;background:#f3f4f6;color:#374151;font-size:11px;font-weight:600;padding:2px 8px;border-radius:4px;text-transform:uppercase;margin-right:8px;">${item.doc_type || 'ordinance'}</span>
+          <span style="display:inline-block;background:${statusColor};color:#ffffff;font-size:11px;font-weight:600;padding:2px 8px;border-radius:4px;margin-right:8px;">${item.current_status}</span>
+          ${item.affected_ward ? `<span style="display:inline-block;background:${item.affected_ward === ward || item.affected_ward === 'citywide' ? '#ecfdf5' : '#fef3c7'};color:${item.affected_ward === ward || item.affected_ward === 'citywide' ? '#065f46' : '#92400e'};font-size:11px;font-weight:600;padding:2px 8px;border-radius:4px;">${item.affected_ward === 'citywide' ? 'Citywide' : 'Ward ' + item.affected_ward}${item.affected_ward === ward ? ' (yours)' : ''}</span>` : ''}
+        </div>
+        <div style="text-align:right;">
+          ${dotsHtml}
+          <span style="font-size:10px;color:#9ca3af;margin-left:4px;">relevance</span>
+        </div>
       </div>
       <h3 style="margin:8px 0;font-size:18px;color:#111827;">${item.plain_title}</h3>
       <p style="color:#4b5563;font-size:14px;line-height:1.5;margin:8px 0;">${item.what_is_happening}</p>
-      <div style="background:#eff6ff;border-left:3px solid #3b82f6;padding:12px;margin:12px 0;border-radius:0 4px 4px 0;">
-        <p style="margin:0;font-size:14px;color:#1e40af;"><strong>What this means for you:</strong> ${item.personal_impact}</p>
+      <div style="background:#fafafa;border-radius:6px;padding:10px 12px;margin:12px 0;display:flex;align-items:center;gap:8px;">
+        <span style="font-size:20px;">${icon}</span>
+        <span style="font-size:14px;color:${catColor};font-weight:600;">${item.personal_impact}</span>
       </div>
       <p style="font-size:13px;color:#6b7280;margin:8px 0;">${item.status_context}</p>
+      ${deadlineHtml}
+      ${item.source_url ? `<p style="margin:8px 0;"><a href="${item.source_url}" style="font-size:13px;color:#2563eb;text-decoration:none;">View full document &rarr;</a></p>` : ''}
       <div style="margin-top:12px;">
         <a href="${voteUpUrl}" style="display:inline-block;background:#f0fdf4;color:#166534;padding:6px 16px;border-radius:6px;text-decoration:none;font-size:14px;margin-right:8px;border:1px solid #bbf7d0;">&#128077; Support</a>
         <a href="${voteDownUrl}" style="display:inline-block;background:#fef2f2;color:#991b1b;padding:6px 16px;border-radius:6px;text-decoration:none;font-size:14px;border:1px solid #fecaca;">&#128078; Oppose</a>
@@ -56,7 +126,7 @@ function buildItemHtml(item, userId) {
  * @returns {string} HTML email content
  */
 function buildDigestHtml(profile, items, weekDate) {
-  const itemsHtml = items.map(item => buildItemHtml(item, profile.id)).join('\n');
+  const itemsHtml = items.map(item => buildItemHtml(item, profile.id, profile.ward)).join('\n');
 
   return `
 <!DOCTYPE html>

@@ -1,6 +1,6 @@
 require('dotenv').config();
 const { createClient } = require('@supabase/supabase-js');
-const { upsertOrdinance, generateStableId } = require('../scripts/state-tracker');
+const { upsertOrdinance, generateStableId, getVoteTotals } = require('../scripts/state-tracker');
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -80,6 +80,16 @@ async function testStateTracker() {
     process.exit(1);
   }
   console.log('PASS: No change detected, shouldNotify=false\n');
+
+  // Test 4: Vote totals aggregation
+  console.log('Test 4: Vote totals aggregation');
+  const totals = await getVoteTotals([id], supabase);
+  // We don't expect votes on test data, just verify the function returns valid structure
+  if (typeof totals !== 'object') {
+    console.error('FAIL: getVoteTotals did not return an object');
+    process.exit(1);
+  }
+  console.log(`PASS: getVoteTotals returned valid object (${Object.keys(totals).length} entries)\n`);
 
   // Cleanup
   await cleanup();

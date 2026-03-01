@@ -53,10 +53,19 @@ async function testFetch() {
   const resolutions = items.filter(i => i.doc_type === 'resolution');
   console.log(`PASS: Found ${ordinances.length} ordinances and ${resolutions.length} resolutions`);
 
+  // Check PDF text extraction
+  const withText = items.filter(i => i.full_text && i.full_text.length > 50);
+  if (withText.length === 0) {
+    console.error('FAIL: No items have extracted PDF text (full_text > 50 chars)');
+    process.exit(1);
+  }
+  console.log(`PASS: ${withText.length}/${items.length} items have extracted PDF text`);
+
   // Print sample items
   console.log('\nSample items:');
   items.slice(0, 5).forEach((item, i) => {
     console.log(`  ${i + 1}. [${item.doc_type}] ${item.ordinance_num} — ${item.title} (${item.current_state})`);
+    console.log(`     Full text: ${item.full_text ? item.full_text.slice(0, 80) + '...' : 'N/A'}`);
   });
 
   console.log('\nAll fetch tests passed!');

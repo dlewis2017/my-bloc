@@ -19,12 +19,14 @@
     select { width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 15px; background: #fff; }
     .radio-group, .checkbox-group { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
     .radio-group label, .checkbox-group label { font-weight: 400; display: flex; align-items: center; gap: 6px; background: #f3f4f6; padding: 8px 14px; border-radius: 8px; cursor: pointer; margin: 0; font-size: 14px; }
-    .radio-group input:checked + span, .checkbox-group input:checked + span { font-weight: 600; }
     .radio-group label:has(input:checked), .checkbox-group label:has(input:checked) { background: #eff6ff; border: 1px solid #bfdbfe; }
     .radio-group label { border: 1px solid transparent; }
     .checkbox-group label { border: 1px solid transparent; }
     .kids-row { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
     .kids-row label { margin: 0; font-weight: 400; font-size: 14px; }
+    .section-label { font-weight: 600; font-size: 14px; margin-top: 20px; margin-bottom: 4px; }
+    .tier-label { font-size: 12px; color: #6b7280; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 12px; margin-bottom: 4px; }
+    .tier-label:first-of-type { margin-top: 0; }
     button { width: 100%; margin-top: 28px; padding: 12px; background: #2563eb; color: #fff; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; }
     button:hover { background: #1d4ed8; }
     button:disabled { background: #93c5fd; cursor: not-allowed; }
@@ -47,12 +49,12 @@
         <label for="ward">Ward</label>
         <select id="ward" name="ward" required>
           <option value="">Select your ward</option>
-          <option value="A">Ward A</option>
-          <option value="B">Ward B</option>
-          <option value="C">Ward C</option>
-          <option value="D">Ward D</option>
-          <option value="E">Ward E</option>
-          <option value="F">Ward F</option>
+          <option value="A">Ward A — Greenville</option>
+          <option value="B">Ward B — West Side</option>
+          <option value="C">Ward C — Journal Square</option>
+          <option value="D">Ward D — The Heights</option>
+          <option value="E">Ward E — Historic Downtown</option>
+          <option value="F">Ward F — Bergen-Lafayette</option>
         </select>
 
         <label>Housing</label>
@@ -69,21 +71,56 @@
           <label><input type="radio" name="transport" value="Transit dependent"><span>Transit dependent</span></label>
         </div>
 
+        <label for="income">Household income</label>
+        <select id="income" name="income">
+          <option value="">Prefer not to say</option>
+          <option value="Under $50K">Under $50K</option>
+          <option value="$50K-$100K">$50K–$100K</option>
+          <option value="$100K-$200K">$100K–$200K</option>
+          <option value="Over $200K">Over $200K</option>
+        </select>
+
         <label>Children</label>
         <div class="kids-row">
           <input type="checkbox" id="has_kids" name="has_kids">
           <label for="has_kids">I have school-age children</label>
         </div>
 
-        <label>Interests (select all that apply)</label>
+        <div class="section-label">What topics matter to you?</div>
+
+        <div class="tier-label">Daily Life</div>
         <div class="checkbox-group">
           <label><input type="checkbox" name="interests" value="rent control"><span>Rent control</span></label>
-          <label><input type="checkbox" name="interests" value="transit"><span>Transit</span></label>
-          <label><input type="checkbox" name="interests" value="noise"><span>Noise</span></label>
-          <label><input type="checkbox" name="interests" value="schools"><span>Schools</span></label>
           <label><input type="checkbox" name="interests" value="property tax"><span>Property tax</span></label>
           <label><input type="checkbox" name="interests" value="parking"><span>Parking</span></label>
+          <label><input type="checkbox" name="interests" value="noise"><span>Noise</span></label>
+          <label><input type="checkbox" name="interests" value="utilities"><span>Utilities</span></label>
+        </div>
+
+        <div class="tier-label">Getting Around</div>
+        <div class="checkbox-group">
+          <label><input type="checkbox" name="interests" value="transit"><span>Transit</span></label>
+          <label><input type="checkbox" name="interests" value="bike lanes"><span>Bike lanes</span></label>
+          <label><input type="checkbox" name="interests" value="roads"><span>Roads</span></label>
+          <label><input type="checkbox" name="interests" value="sidewalks"><span>Sidewalks</span></label>
+        </div>
+
+        <div class="tier-label">Community</div>
+        <div class="checkbox-group">
+          <label><input type="checkbox" name="interests" value="schools"><span>Schools</span></label>
+          <label><input type="checkbox" name="interests" value="parks"><span>Parks</span></label>
+          <label><input type="checkbox" name="interests" value="public safety"><span>Public safety</span></label>
+          <label><input type="checkbox" name="interests" value="senior services"><span>Senior services</span></label>
+          <label><input type="checkbox" name="interests" value="youth programs"><span>Youth programs</span></label>
+        </div>
+
+        <div class="tier-label">Growth &amp; Economy</div>
+        <div class="checkbox-group">
           <label><input type="checkbox" name="interests" value="development"><span>Development</span></label>
+          <label><input type="checkbox" name="interests" value="zoning"><span>Zoning</span></label>
+          <label><input type="checkbox" name="interests" value="jobs"><span>Jobs</span></label>
+          <label><input type="checkbox" name="interests" value="small business"><span>Small business</span></label>
+          <label><input type="checkbox" name="interests" value="affordable housing"><span>Affordable housing</span></label>
         </div>
 
         <button type="submit">Subscribe</button>
@@ -112,6 +149,7 @@
         ward: form.ward.value,
         housing: housing ? housing.value : '',
         transport: transport ? transport.value : '',
+        income: form.income.value || null,
         has_kids: form.has_kids.checked,
         interests
       };

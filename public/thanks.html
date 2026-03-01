@@ -6,16 +6,120 @@
   <title>CivicPulse</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f9fafb; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
-    .card { background: #fff; border-radius: 12px; padding: 48px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1); max-width: 400px; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f9fafb; display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; }
+    .card { background: #fff; border-radius: 12px; padding: 40px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1); max-width: 520px; width: 100%; }
     h1 { font-size: 24px; color: #111827; margin-bottom: 8px; }
-    p { color: #6b7280; font-size: 15px; line-height: 1.5; }
+    .subtitle { color: #6b7280; font-size: 15px; line-height: 1.5; margin-bottom: 16px; }
+    .divider { border-top: 1px solid #e5e7eb; margin: 20px 0; }
+    .prompt { color: #374151; font-size: 15px; font-weight: 600; margin-bottom: 12px; }
+    .draft-box { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; text-align: left; margin-bottom: 16px; }
+    .draft-field { margin-bottom: 8px; font-size: 13px; }
+    .draft-label { color: #6b7280; font-weight: 600; }
+    .draft-value { color: #111827; }
+    .draft-body { white-space: pre-wrap; color: #374151; font-size: 14px; line-height: 1.6; border-top: 1px solid #e5e7eb; padding-top: 12px; margin-top: 8px; }
+    .actions { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+    .btn { display: inline-block; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 600; cursor: pointer; border: none; }
+    .btn-copy { background: #f5f3ff; color: #5b21b6; border: 1px solid #ddd6fe; }
+    .btn-copy:hover { background: #ede9fe; }
+    .btn-gmail { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
+    .btn-gmail:hover { background: #fee2e2; }
+    .btn-outlook { background: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe; }
+    .btn-outlook:hover { background: #dbeafe; }
+    .btn-yahoo { background: #f5f3ff; color: #7c3aed; border: 1px solid #ddd6fe; }
+    .btn-yahoo:hover { background: #ede9fe; }
+    .copied { color: #059669; font-size: 13px; margin-top: 8px; display: none; }
+    #email-section { display: none; }
   </style>
 </head>
 <body>
   <div class="card">
     <h1>Thanks!</h1>
-    <p>Your response has been recorded.</p>
+    <p class="subtitle">Your vote has been recorded.</p>
+
+    <div id="email-section">
+      <div class="divider"></div>
+      <p class="prompt">Want to let your council rep know?</p>
+
+      <div class="draft-box">
+        <div class="draft-field">
+          <span class="draft-label">To:</span>
+          <span class="draft-value" id="draft-to"></span>
+        </div>
+        <div class="draft-field">
+          <span class="draft-label">Subject:</span>
+          <span class="draft-value" id="draft-subject"></span>
+        </div>
+        <div class="draft-body" id="draft-body"></div>
+      </div>
+
+      <div class="actions">
+        <button class="btn btn-copy" onclick="copyDraft()">Copy to clipboard</button>
+        <a id="gmail-link" class="btn btn-gmail" target="_blank">Open in Gmail</a>
+        <a id="outlook-link" class="btn btn-outlook" target="_blank">Open in Outlook</a>
+        <a id="yahoo-link" class="btn btn-yahoo" target="_blank">Open in Yahoo</a>
+      </div>
+      <p class="copied" id="copied-msg">Copied to clipboard!</p>
+    </div>
   </div>
+
+  <script>
+    const COUNCIL_REPS = {
+      A: { name: 'Denise Ridley',     email: 'DRidley@jcnj.org' },
+      B: { name: 'Joel Brooks',       email: 'JBrooks@jcnj.org' },
+      C: { name: 'Thomas Zuppa Jr.',  email: 'TZuppa@jcnj.org' },
+      D: { name: 'Jake Ephros',       email: 'JEphros@jcnj.org' },
+      E: { name: 'Eleana Little',     email: 'ELittle@jcnj.org' },
+      F: { name: 'Frank E. Gilmore',  email: 'FGilmore@jcnj.org' },
+    };
+
+    const params = new URLSearchParams(window.location.search);
+    const vote = params.get('vote');
+    const ward = params.get('ward');
+    const title = params.get('title');
+
+    if (vote && ward && title) {
+      const rep = COUNCIL_REPS[ward];
+      if (rep) {
+        const stance = vote === 'up' ? 'support' : 'oppose';
+        const subject = 'Re: ' + title;
+        const body = 'Dear ' + rep.name + ',\n\nI am a Ward ' + ward + ' resident and I ' + stance + ' ' + title + '.\n\nThank you for your time.';
+
+        document.getElementById('draft-to').textContent = rep.name + ' <' + rep.email + '>';
+        document.getElementById('draft-subject').textContent = subject;
+        document.getElementById('draft-body').textContent = body;
+
+        // Gmail compose link
+        document.getElementById('gmail-link').href =
+          'https://mail.google.com/mail/?view=cm&to=' + encodeURIComponent(rep.email) +
+          '&su=' + encodeURIComponent(subject) +
+          '&body=' + encodeURIComponent(body);
+
+        // Outlook web compose link
+        document.getElementById('outlook-link').href =
+          'https://outlook.live.com/mail/0/deeplink/compose?to=' + encodeURIComponent(rep.email) +
+          '&subject=' + encodeURIComponent(subject) +
+          '&body=' + encodeURIComponent(body);
+
+        // Yahoo mail compose link
+        document.getElementById('yahoo-link').href =
+          'https://compose.mail.yahoo.com/?to=' + encodeURIComponent(rep.email) +
+          '&subject=' + encodeURIComponent(subject) +
+          '&body=' + encodeURIComponent(body);
+
+        document.getElementById('email-section').style.display = 'block';
+
+        // Store for copy
+        window._draftText = 'To: ' + rep.email + '\nSubject: ' + subject + '\n\n' + body;
+      }
+    }
+
+    function copyDraft() {
+      navigator.clipboard.writeText(window._draftText).then(function() {
+        var msg = document.getElementById('copied-msg');
+        msg.style.display = 'block';
+        setTimeout(function() { msg.style.display = 'none'; }, 2000);
+      });
+    }
+  </script>
 </body>
 </html>
