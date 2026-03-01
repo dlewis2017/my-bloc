@@ -11,23 +11,24 @@ const TEST_EMAIL = process.env.TEST_EMAIL || 'delivered@resend.dev';
 const SAMPLE_ITEMS = [
   {
     doc_type: 'ordinance',
-    plain_title: 'Rent Control Increase to 5.5%',
-    what_is_happening: 'The city council is considering raising the maximum allowable rent increase from 4% to 5.5% per year for buildings with 6+ units. A new hardship exemption would let landlords request higher increases if operating costs rise more than 8%.',
-    personal_impact: 'As a renter in Ward C, this could directly increase your rent by up to 1.5% more per year. If your building has 6 or more units, your landlord could raise rent by up to 5.5% instead of the current 4% cap.',
-    relevance_score: 9,
+    plain_title: 'Rent Control Cap Raised from 4% to 5.5%',
+    what_is_happening: 'This ordinance would raise the maximum rent increase landlords can charge from 4% to 5.5% per year in buildings with 6+ units. It also creates a new process where landlords can apply for even higher increases if their operating costs went up more than 8%.',
+    personal_impact: 'This one hits you directly 😬 — if your building has 6+ units, your landlord could raise your rent 37% more than before (4% → 5.5%). On a $1,800/month apartment that\'s an extra $27/month, or $324/yr. And that new hardship exemption? Basically a loophole for landlords to push even higher. Public hearing is Feb 11 — your Ward C council member sponsored this, so calling their office actually matters here 📣',
+    relevance_score: 10,
     current_status: 'INTRODUCED',
-    status_context: 'This was introduced at the January 28 meeting. A public hearing is scheduled for February 11 where residents can testify.',
+    status_context: 'This just had its first reading and isn\'t law yet — there\'s a public hearing on February 11, 2026 where residents can speak before any vote happens.',
     action_available: true,
+    next_vote_date: '2026-02-11',
     vote_totals: { up: 42, down: 18 }
   },
   {
     doc_type: 'resolution',
-    plain_title: 'Light Rail Station Safety Improvements',
+    plain_title: 'Light Rail Stations Getting Safety Upgrades',
     what_is_happening: 'The council approved a $2.1M contract for safety improvements at three light rail stations including better lighting, emergency call boxes, and security cameras.',
-    personal_impact: 'As someone without a car who relies on transit, improved safety at light rail stations directly affects your daily commute and nighttime travel security.',
-    relevance_score: 7,
+    personal_impact: 'Your late-night commute home just got a little less sketchy 🚉✨ — new lighting, cameras, and emergency call boxes coming to three stations. No car means you actually use these, so this is a real quality-of-life upgrade for you.',
+    relevance_score: 8,
     current_status: 'PASSED',
-    status_context: 'This resolution passed unanimously at the January 28 meeting and is now in effect.',
+    status_context: 'This passed unanimously at the January 28 meeting and is now in effect — construction should start within a few months.',
     action_available: false
   }
 ];
@@ -55,11 +56,11 @@ async function testEmail() {
   // Test 1: Build HTML without sending
   console.log('Test 1: Building digest HTML');
   const html = buildDigestHtml(realProfile, testItems, 'February 10, 2026');
-  if (!html.includes('Rent Control Increase')) {
+  if (!html.includes('Rent Control Cap')) {
     console.error('FAIL: HTML missing expected content');
     process.exit(1);
   }
-  if (!html.includes('Light Rail Station')) {
+  if (!html.includes('Light Rail')) {
     console.error('FAIL: HTML missing second item');
     process.exit(1);
   }

@@ -132,6 +132,10 @@ The state tracker is idempotent — running twice on the same data produces the 
 - **Email footer** includes both "Manage profile" and "Unsubscribe" links
 - **pdf-parse v2** uses a class-based API (`new PDFParse({ data })` + `.load()` + `.getText()`) not a function call
 
+## Working Style
+
+- Always briefly explain *why* before taking an action — especially for installing packages, running commands, or making non-obvious changes. The user wants to understand the reasoning as you go, not be surprised by actions after the fact.
+
 ## Coding Conventions
 
 - `async/await` throughout, no callbacks
