@@ -189,4 +189,56 @@ async function sendDigest(profile, items, weekDate) {
   return data;
 }
 
-module.exports = { sendDigest, buildDigestHtml, buildItemHtml, generateSubjectLine };
+/**
+ * Build a welcome email for a new subscriber using cached ward highlights.
+ *
+ * @param {Object} profile - { id, email, ward }
+ * @param {Array} items - cached highlight items (same shape as buildItemHtml expects)
+ * @param {string} weekDate - formatted week date string from ward_highlights
+ * @returns {string} HTML email content
+ */
+function buildWelcomeHtml(profile, items, weekDate) {
+  const rep = COUNCIL_REPS[profile.ward];
+  const itemsHtml = items.map(item => buildItemHtml(item, profile.id, profile.ward)).join('\n');
+
+  const repHtml = rep ? `
+    <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:16px;margin-bottom:20px;">
+      <p style="margin:0 0 6px;font-size:14px;font-weight:600;color:#1e40af;">Your council rep: ${rep.name} (Ward ${profile.ward})</p>
+      <p style="margin:0 0 6px;font-size:13px;color:#1e40af;">Email: <a href="mailto:${rep.email}" style="color:#2563eb;">${rep.email}</a></p>
+      <p style="margin:0;font-size:13px;color:#374151;">Your personalized digest arrives every Thursday.</p>
+    </div>` : '';
+
+  return `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f9fafb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <div style="max-width:600px;margin:0 auto;padding:20px;">
+    <div style="text-align:center;padding:24px 0;">
+      <h1 style="margin:0;font-size:24px;color:#111827;">Welcome to MyBloc</h1>
+      <p style="margin:4px 0 0;font-size:14px;color:#6b7280;">Here's a preview of what's happening in Ward ${profile.ward || '?'}</p>
+    </div>
+
+    ${repHtml}
+
+    <p style="font-size:14px;color:#4b5563;margin-bottom:16px;">Here are a few items from the latest council agenda that may affect you:</p>
+
+    ${itemsHtml}
+
+    <div style="text-align:center;margin:24px 0;">
+      <a href="${VOTE_BASE_URL}/manage.html?user=${profile.id}" style="display:inline-block;padding:12px 28px;background:#2563eb;color:#fff;border-radius:8px;text-decoration:none;font-size:14px;font-weight:600;">Update your profile</a>
+    </div>
+
+    <div style="text-align:center;padding:24px 0;border-top:1px solid #e5e7eb;margin-top:24px;">
+      <p style="font-size:12px;color:#9ca3af;margin:0;">
+        MyBloc &middot; Jersey City &middot;
+        <a href="${VOTE_BASE_URL}/manage.html?user=${profile.id}" style="color:#9ca3af;">Manage profile</a> &middot;
+        <a href="${VOTE_BASE_URL}/api/unsubscribe?user=${profile.id}" style="color:#9ca3af;">Unsubscribe</a>
+      </p>
+    </div>
+  </div>
+</body>
+</html>`;
+}
+
+module.exports = { sendDigest, buildDigestHtml, buildItemHtml, buildWelcomeHtml, generateSubjectLine, COUNCIL_REPS };

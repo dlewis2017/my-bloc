@@ -94,6 +94,7 @@ async function runDigest(deps = {}) {
   console.log('Step 6: Analyzing ordinances per profile with Claude...');
   const weekDate = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
   let emailsSent = 0;
+  const cachedWards = new Set();
 
   for (const profile of profiles) {
     console.log(`\n  Analyzing for ${profile.email} (Ward ${profile.ward})...`);
@@ -154,6 +155,23 @@ async function runDigest(deps = {}) {
 
     if (dropped > 0) {
       console.log(`  Capped: showing ${cappedItems.length} of ${relevantItems.length} relevant items`);
+    }
+
+    // Cache top 3 items for welcome emails (first subscriber per ward wins)
+    if (profile.ward && !cachedWards.has(profile.ward)) {
+      cachedWards.add(profile.ward);
+      const highlightItems = cappedItems.slice(0, 3);
+      try {
+        await db.from('ward_highlights').upsert({
+          ward: profile.ward,
+          items: highlightItems,
+          week_date: weekDate,
+          updated_at: new Date().toISOString()
+        });
+        console.log(`  Cached ${highlightItems.length} highlights for Ward ${profile.ward}`);
+      } catch (err) {
+        console.warn(`  Failed to cache highlights for Ward ${profile.ward}: ${err.message}`);
+      }
     }
 
     // Step 7: Send personalized digest email

@@ -1,9 +1,12 @@
 const { createClient } = require('@supabase/supabase-js');
+const { Resend } = require('resend');
+const { buildWelcomeHtml } = require('../scripts/send-digest');
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_KEY
 );
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 const VALID_WARDS = ['A', 'B', 'C', 'D', 'E', 'F'];
 const VALID_HOUSING = ['Renter', 'Homeowner', 'Section 8'];
@@ -100,6 +103,28 @@ module.exports = async function handler(req, res) {
       }
       console.error('Signup error:', error);
       return res.status(500).json({ error: 'Failed to create subscription.' });
+    }
+
+    // Send welcome email with cached ward highlights (best-effort)
+    try {
+      const { data: highlight } = await supabase
+        .from('ward_highlights')
+        .select('items, week_date')
+        .eq('ward', ward)
+        .single();
+
+      if (highlight && highlight.items && highlight.items.length > 0) {
+        const profile = { id: data.id, email: email.toLowerCase().trim(), ward };
+        const html = buildWelcomeHtml(profile, highlight.items, highlight.week_date);
+        await resend.emails.send({
+          from: 'MyBloc <digest@mybloc.co>',
+          to: [profile.email],
+          subject: `Welcome to MyBloc — here's what's happening in Ward ${ward}`,
+          html
+        });
+      }
+    } catch (welcomeErr) {
+      console.error('Welcome email failed (signup still succeeded):', welcomeErr.message);
     }
 
     return res.status(200).json({ success: true, id: data.id });

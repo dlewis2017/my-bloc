@@ -40,6 +40,14 @@ create table votes (
   unique(user_id, ordinance_id)               -- one vote per person per item
 );
 
+-- Cached top items per ward for instant welcome emails (no Claude call needed)
+create table ward_highlights (
+  ward        text primary key,              -- A | B | C | D | E | F
+  items       jsonb not null default '[]',   -- top 3 analyzed items (same shape as buildItemHtml expects)
+  week_date   text not null,                 -- e.g. "March 1, 2026"
+  updated_at  timestamptz default now()
+);
+
 -- Row level security — profiles are private
 alter table profiles enable row level security;
 alter table votes enable row level security;
