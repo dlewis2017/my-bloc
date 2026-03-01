@@ -175,7 +175,7 @@ async function sendDigest(profile, items, weekDate) {
   const subject = generateSubjectLine(items);
 
   const { data, error } = await resend.emails.send({
-    from: 'MyBloc <onboarding@resend.dev>',
+    from: 'MyBloc <digest@mybloc.co>',
     to: [profile.email],
     subject,
     html
