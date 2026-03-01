@@ -37,7 +37,8 @@ civicpulse/
 │   └── run-digest.js            ← full pipeline orchestrator (fetch → track → analyze → email)
 ├── api/
 │   ├── vote.js                  ← thumbs up/down handler (redirects to /thanks.html)
-│   ├── signup.js                ← POST subscriber registration
+│   ├── signup.js                ← POST subscriber registration + welcome email
+│   ├── welcome.js               ← POST manual welcome email re-send ({ userId })
 │   ├── profile.js               ← GET/PUT subscriber profile
 │   └── unsubscribe.js           ← sets active=false, redirects to /thanks.html
 ├── public/
@@ -111,10 +112,11 @@ await parser.destroy();
 
 ## Database Schema
 
-Three tables: `ordinances`, `profiles`, `votes`. See `supabase/schema.sql` for full DDL.
+Four tables: `ordinances`, `profiles`, `votes`, `ward_highlights`. See `supabase/schema.sql` for full DDL.
 
 - Supabase RLS is enabled but no policies defined — API routes use service key to bypass
 - `votes` table has FK constraints on both `user_id` (→ `profiles.id`) and `ordinance_id` (→ `ordinances.id`)
+- `ward_highlights` caches top 3 analyzed items per ward for instant welcome emails (no Claude call at signup time)
 
 ## State Machine
 
@@ -131,6 +133,9 @@ The state tracker is idempotent — running twice on the same data produces the 
 - **Vercel CLI** `vercel deploy` creates a new project by default — use `vercel link` first. Domain: `mybloc.co`
 - **Email footer** includes both "Manage profile" and "Unsubscribe" links
 - **pdf-parse v2** uses a class-based API (`new PDFParse({ data })` + `.load()` + `.getText()`) not a function call
+- **Welcome email depends on `ward_highlights`** being seeded — if the table is empty (e.g. fresh deploy), welcome emails are silently skipped and signup still succeeds
+- **Pipeline re-runs on already-notified items** won't reach the ward caching step — to re-seed `ward_highlights` manually, reset `notified_at` or write a one-off seed script
+- **Supabase remote SQL** — use `psql "$SUPABASE_DB_URL"` for DDL; the Supabase CLI (`v2.75.0`, installed via `brew install supabase/tap/supabase`) does not have a `db execute` command
 
 ## Working Style
 
