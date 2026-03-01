@@ -135,7 +135,7 @@ function buildDigestHtml(profile, items, weekDate) {
 <body style="margin:0;padding:0;background:#f9fafb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
   <div style="max-width:600px;margin:0 auto;padding:20px;">
     <div style="text-align:center;padding:24px 0;">
-      <h1 style="margin:0;font-size:24px;color:#111827;">Your Jersey City Digest</h1>
+      <h1 style="margin:0;font-size:24px;color:#111827;">Your MyBloc Digest</h1>
       <p style="margin:4px 0 0;font-size:14px;color:#6b7280;">Week of ${weekDate} &middot; Ward ${profile.ward || '?'}</p>
     </div>
 
@@ -143,7 +143,7 @@ function buildDigestHtml(profile, items, weekDate) {
 
     <div style="text-align:center;padding:24px 0;border-top:1px solid #e5e7eb;margin-top:24px;">
       <p style="font-size:12px;color:#9ca3af;margin:0;">
-        CivicPulse &middot; Jersey City &middot;
+        MyBloc &middot; Jersey City &middot;
         <a href="${VOTE_BASE_URL}/manage.html?user=${profile.id}" style="color:#9ca3af;">Manage profile</a> &middot;
         <a href="${VOTE_BASE_URL}/api/unsubscribe?user=${profile.id}" style="color:#9ca3af;">Unsubscribe</a>
       </p>
@@ -157,7 +157,7 @@ function buildDigestHtml(profile, items, weekDate) {
  * Generate a personalized subject line from the top items.
  */
 function generateSubjectLine(items) {
-  if (!items.length) return 'Your Weekly JC Digest';
+  if (!items.length) return 'Your Weekly MyBloc Digest';
   const topItem = items[0];
   return `\u{1F3D9}\uFE0F JC This Week — ${topItem.plain_title}`;
 }
@@ -175,7 +175,7 @@ async function sendDigest(profile, items, weekDate) {
   const subject = generateSubjectLine(items);
 
   const { data, error } = await resend.emails.send({
-    from: 'CivicPulse <onboarding@resend.dev>',
+    from: 'MyBloc <onboarding@resend.dev>',
     to: [profile.email],
     subject,
     html

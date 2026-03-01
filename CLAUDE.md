@@ -1,4 +1,4 @@
-# CivicPulse
+# MyBloc
 
 A personalized civic digest system for Jersey City, NJ residents. It monitors local government documents (ordinances, resolutions), analyzes them with Claude AI against each subscriber's profile, and sends a weekly personalized email digest explaining what's happening and why it matters to *that specific person*.
 
@@ -15,12 +15,12 @@ CivicWeb (Playwright) → PDF Extract → State Tracker → Claude Analysis → 
 
 - **Orchestration:** `node scripts/run-digest.js` (single script, no n8n)
 - **Database:** Supabase (Postgres + RLS)
-- **AI Analysis:** Claude API (`claude-opus-4-20250514` via `@anthropic-ai/sdk`)
+- **AI Analysis:** Claude API (`claude-sonnet-4-6` via `@anthropic-ai/sdk`, 5 concurrent calls)
 - **Email:** Resend SDK
 - **Scraping:** Playwright (headless Chromium)
 - **PDF Parsing:** `pdf-parse` v2 (class-based API)
 - **Web/API:** Vercel (serverless functions + static hosting)
-- **Deployment:** `civicpulse-cursor.vercel.app`, GitHub repo `dlewis2017/civic-pulse-2`
+- **Deployment:** `mybloc.co`, GitHub repo `dlewis2017/civic-pulse-2`
 
 ## File Structure
 
@@ -81,7 +81,7 @@ SUPABASE_SERVICE_KEY=...
 SUPABASE_DB_URL=...
 ANTHROPIC_API_KEY=...
 RESEND_API_KEY=...
-VOTE_BASE_URL=https://civicpulse-cursor.vercel.app
+VOTE_BASE_URL=https://mybloc.co
 TEST_EMAIL=your-test-email@example.com
 ```
 
@@ -128,7 +128,7 @@ The state tracker is idempotent — running twice on the same data produces the 
 - **Vote links must use real ordinance IDs** from `ordinances.id` — FK constraint on `votes.ordinance_id`
 - **Vote handler redirects to `/thanks.html`** not `/thanks`
 - **CivicWeb main page lists meetings**, not agenda items — must navigate into individual meetings
-- **Vercel CLI** `vercel deploy` creates a new project by default — use `vercel link --project civicpulse-cursor` first
+- **Vercel CLI** `vercel deploy` creates a new project by default — use `vercel link` first. Domain: `mybloc.co`
 - **Email footer** includes both "Manage profile" and "Unsubscribe" links
 - **pdf-parse v2** uses a class-based API (`new PDFParse({ data })` + `.load()` + `.getText()`) not a function call
 

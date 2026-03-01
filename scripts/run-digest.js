@@ -9,6 +9,7 @@ const { sendDigest, generateSubjectLine } = require('./send-digest');
 const MIN_RELEVANCE_SCORE = 5;
 const MAX_ITEMS_PER_DIGEST = 10;
 const MAX_MEETINGS = 2;
+const CONCURRENCY = 2; // parallel Claude API calls (kept low for 30k tokens/min rate limit)
 
 /**
  * Full digest pipeline: fetch → state track → Claude analyze → send emails.
@@ -26,7 +27,7 @@ async function runDigest(deps = {}) {
   const send = deps.sendDigest || sendDigest;
   const markDone = deps.markNotified || markNotified;
 
-  console.log('=== CivicPulse Digest Pipeline ===\n');
+  console.log('=== MyBloc Digest Pipeline ===\n');
 
   // Step 1: Fetch latest ordinances/resolutions from CivicWeb
   console.log('Step 1: Fetching from CivicWeb...');
@@ -96,26 +97,39 @@ async function runDigest(deps = {}) {
   for (const profile of profiles) {
     console.log(`\n  Analyzing for ${profile.email} (Ward ${profile.ward})...`);
     const relevantItems = [];
+    let completed = 0;
 
-    for (const ord of unnotified) {
-      const textForAnalysis = ord.full_text || ord.title;
-      try {
-        const analysis = await analyze(textForAnalysis, profile);
+    // Process ordinances in parallel batches
+    for (let i = 0; i < unnotified.length; i += CONCURRENCY) {
+      const batch = unnotified.slice(i, i + CONCURRENCY);
+      const results = await Promise.allSettled(
+        batch.map(async (ord) => {
+          const textForAnalysis = ord.full_text || ord.title;
+          const analysis = await analyze(textForAnalysis, profile);
+          return { ord, analysis };
+        })
+      );
 
-        if (analysis.relevance_score >= MIN_RELEVANCE_SCORE) {
-          relevantItems.push({
-            ...analysis,
-            ordinance_id: ord.id,
-            doc_type: ord.doc_type,
-            source_url: ord.source_url || null,
-            vote_totals: voteTotals[ord.id] || null
-          });
-          console.log(`    ${ord.ordinance_num}: score ${analysis.relevance_score} — "${analysis.plain_title}"`);
+      for (const result of results) {
+        completed++;
+        if (result.status === 'fulfilled') {
+          const { ord, analysis } = result.value;
+          if (analysis.relevance_score >= MIN_RELEVANCE_SCORE) {
+            relevantItems.push({
+              ...analysis,
+              ordinance_id: ord.id,
+              doc_type: ord.doc_type,
+              source_url: ord.source_url || null,
+              vote_totals: voteTotals[ord.id] || null
+            });
+            console.log(`    [${completed}/${unnotified.length}] ${ord.ordinance_num}: score ${analysis.relevance_score} — "${analysis.plain_title}"`);
+          } else {
+            console.log(`    [${completed}/${unnotified.length}] ${ord.ordinance_num}: score ${analysis.relevance_score} (filtered out)`);
+          }
         } else {
-          console.log(`    ${ord.ordinance_num}: score ${analysis.relevance_score} (filtered out)`);
+          const ord = batch[results.indexOf(result)];
+          console.warn(`    [${completed}/${unnotified.length}] ${ord.ordinance_num}: analysis failed — ${result.reason?.message || result.reason}`);
         }
-      } catch (err) {
-        console.warn(`    ${ord.ordinance_num}: analysis failed — ${err.message}`);
       }
     }
 

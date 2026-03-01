@@ -69,18 +69,21 @@ function buildPrompt(ordinanceText, profile) {
  * @param {Object} profile - { ward, housing, transport, has_kids, interests }
  * @returns {Object} parsed JSON analysis result
  */
-async function analyzeOrdinance(ordinanceText, profile) {
+async function analyzeOrdinance(ordinanceText, profile, maxRetries = 3) {
   const prompt = buildPrompt(ordinanceText, profile);
 
-  const message = await client.messages.create({
-    model: 'claude-opus-4-20250514',
-    max_tokens: 1024,
-    messages: [
-      { role: 'user', content: prompt }
-    ]
-  });
+  let lastError;
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      const message = await client.messages.create({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 1024,
+        messages: [
+          { role: 'user', content: prompt }
+        ]
+      });
 
-  const responseText = message.content[0].text.trim();
+      const responseText = message.content[0].text.trim();
 
   // Parse the JSON response, handling potential markdown code fences
   let jsonStr = responseText;
@@ -103,6 +106,20 @@ async function analyzeOrdinance(ordinanceText, profile) {
   result.relevance_score = Number(result.relevance_score);
 
   return result;
+    } catch (err) {
+      lastError = err;
+      // Retry on rate limit (429) or server errors (5xx)
+      const status = err?.status || err?.statusCode;
+      if (status === 429 || (status >= 500 && status < 600)) {
+        const waitSec = Math.pow(2, attempt + 1) * 5; // 10s, 20s, 40s
+        console.log(`      Rate limited, waiting ${waitSec}s before retry ${attempt + 1}/${maxRetries}...`);
+        await new Promise(r => setTimeout(r, waitSec * 1000));
+        continue;
+      }
+      throw err; // Non-retryable error
+    }
+  }
+  throw lastError;
 }
 
 module.exports = { analyzeOrdinance, buildPrompt };
