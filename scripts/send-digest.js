@@ -109,7 +109,7 @@ function buildItemHtml(item, userId, ward) {
       <p style="font-size:13px;color:#6b7280;margin:8px 0;">${item.status_context}</p>
       ${item.location ? `<p style="margin:8px 0;"><a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(item.location + ', Jersey City, NJ')}" style="font-size:13px;color:#2563eb;text-decoration:none;">&#x1F4CD; ${item.location}</a></p>` : ''}
       ${deadlineHtml}
-      ${item.source_url ? `<p style="margin:8px 0;"><a href="${item.source_url}" style="font-size:13px;color:#2563eb;text-decoration:none;">View full document &rarr;</a></p>` : ''}
+      ${item.source_url || item.meeting_url ? `<p style="margin:8px 0;">${item.source_url ? `<a href="${item.source_url}" style="font-size:13px;color:#2563eb;text-decoration:none;">View full document</a>` : ''}${item.source_url && item.meeting_url ? ' &middot; ' : ''}${item.meeting_url ? `<a href="${item.meeting_url}" style="font-size:13px;color:#2563eb;text-decoration:none;">Meeting agenda</a>` : ''}</p>` : ''}
       <div style="margin-top:12px;">
         <a href="${voteUpUrl}" style="display:inline-block;background:#f0fdf4;color:#166534;padding:6px 16px;border-radius:6px;text-decoration:none;font-size:14px;margin-right:8px;border:1px solid #bbf7d0;">&#128077; Support</a>
         <a href="${voteDownUrl}" style="display:inline-block;background:#fef2f2;color:#991b1b;padding:6px 16px;border-radius:6px;text-decoration:none;font-size:14px;border:1px solid #fecaca;">&#128078; Oppose</a>

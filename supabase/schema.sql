@@ -7,6 +7,7 @@ create table ordinances (
   full_text      text,
   source_url     text,
   meeting_date   date,
+  meeting_url    text,                        -- link to the CivicWeb meeting page
   first_seen     timestamptz default now(),
   last_updated   timestamptz default now(),
   current_state  text default 'INTRODUCED',  -- INTRODUCED | AMENDED | COMMITTEE | VOTED | PASSED | FAILED | WITHDRAWN

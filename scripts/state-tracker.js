@@ -29,7 +29,7 @@ function generateStableId(ordinanceNum, title) {
  * Upsert an ordinance into the database with state tracking.
  * Only marks for notification on new inserts or state changes.
  *
- * @param {Object} ordinanceData - { ordinance_num, title, doc_type, full_text, source_url, meeting_date, current_state }
+ * @param {Object} ordinanceData - { ordinance_num, title, doc_type, full_text, source_url, meeting_date, meeting_url, current_state }
  * @param {Object} [client] - optional Supabase client (for testing)
  * @returns {{ action: string, id: string, shouldNotify: boolean }}
  */
@@ -82,6 +82,7 @@ async function upsertOrdinance(ordinanceData, client) {
       full_text: ordinanceData.full_text || null,
       source_url: ordinanceData.source_url || null,
       meeting_date: ordinanceData.meeting_date || null,
+      meeting_url: ordinanceData.meeting_url || null,
       current_state: ordinanceData.current_state || 'INTRODUCED'
     });
 

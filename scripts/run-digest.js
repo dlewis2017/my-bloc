@@ -50,6 +50,7 @@ async function runDigest(deps = {}) {
       full_text: item.full_text || null,
       source_url: item.source_url,
       meeting_date: item.meeting_date || null,
+      meeting_url: item.meeting_url || null,
       current_state: item.current_state || 'INTRODUCED'
     }, db);
     if (result.shouldNotify) newOrChanged++;
@@ -120,6 +121,7 @@ async function runDigest(deps = {}) {
               ordinance_id: ord.id,
               doc_type: ord.doc_type,
               source_url: ord.source_url || null,
+              meeting_url: ord.meeting_url || null,
               vote_totals: voteTotals[ord.id] || null
             });
             console.log(`    [${completed}/${unnotified.length}] ${ord.ordinance_num}: score ${analysis.relevance_score} — "${analysis.plain_title}"`);

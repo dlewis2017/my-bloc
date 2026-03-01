@@ -180,10 +180,11 @@ async function fetchCivicWeb(maxMeetings = 2) {
       const items = await parseDocumentFolder(page, folderUrl);
       console.log(`  Found ${items.length} items`);
 
-      // Attach meeting date to each item
+      // Attach meeting info to each item
       for (const item of items) {
         item.meeting_date = meeting.date || null;
         item.meeting_title = meeting.title;
+        item.meeting_url = meeting.url || null;
       }
 
       allItems.push(...items);
