@@ -52,6 +52,19 @@
         <label for="email">Email</label>
         <input type="email" id="email" name="email" required placeholder="you@example.com">
 
+        <label for="city">City</label>
+        <select id="city" name="city" required>
+          <option value="">Select your city</option>
+          <option value="Jersey City">Jersey City, NJ</option>
+          <option value="other">Other</option>
+        </select>
+        <div id="city-unavailable" style="display:none;margin-top:12px;padding:16px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;">
+          <p style="font-size:14px;color:#92400e;font-weight:600;margin-bottom:4px;">We're not in your city yet</p>
+          <p style="font-size:13px;color:#a16207;">We're working on expanding to more cities. Enter your email and city below and we'll notify you when we launch in your area.</p>
+          <input type="text" id="other-city" name="other_city" placeholder="Enter your city" style="width:100%;padding:10px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:15px;margin-top:8px;">
+        </div>
+
+        <div id="ward-section">
         <label for="ward">Ward</label>
         <select id="ward" name="ward" required>
           <option value="">Select your ward</option>
@@ -62,6 +75,7 @@
           <option value="E">Ward E — Historic Downtown</option>
           <option value="F">Ward F — Bergen-Lafayette</option>
         </select>
+        </div>
 
         <label>Housing</label>
         <div class="radio-group">
@@ -138,6 +152,31 @@
   <script>
     const form = document.getElementById('signup-form');
     const msg = document.getElementById('msg');
+    const citySelect = document.getElementById('city');
+    const wardSection = document.getElementById('ward-section');
+    const cityUnavailable = document.getElementById('city-unavailable');
+    const wardSelect = document.getElementById('ward');
+    const submitBtn = form.querySelector('button');
+
+    citySelect.addEventListener('change', () => {
+      if (citySelect.value === 'Jersey City') {
+        wardSection.style.display = '';
+        cityUnavailable.style.display = 'none';
+        wardSelect.required = true;
+        submitBtn.textContent = 'Subscribe';
+      } else if (citySelect.value === 'other') {
+        wardSection.style.display = 'none';
+        cityUnavailable.style.display = 'block';
+        wardSelect.required = false;
+        wardSelect.value = '';
+        submitBtn.textContent = 'Join waitlist';
+      } else {
+        wardSection.style.display = '';
+        cityUnavailable.style.display = 'none';
+        wardSelect.required = true;
+        submitBtn.textContent = 'Subscribe';
+      }
+    });
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -150,14 +189,19 @@
       const housing = form.querySelector('input[name="housing"]:checked');
       const transport = form.querySelector('input[name="transport"]:checked');
 
+      const isWaitlist = citySelect.value === 'other';
+      const city = isWaitlist ? (document.getElementById('other-city').value || 'Unknown') : citySelect.value;
+
       const body = {
         email: form.email.value,
-        ward: form.ward.value,
-        housing: housing ? housing.value : '',
-        transport: transport ? transport.value : '',
+        city,
+        ward: isWaitlist ? null : form.ward.value,
+        housing: housing ? housing.value : (isWaitlist ? null : ''),
+        transport: transport ? transport.value : (isWaitlist ? null : ''),
         income: form.income.value || null,
         has_kids: form.has_kids.checked,
-        interests
+        interests,
+        waitlist: isWaitlist
       };
 
       try {
@@ -170,9 +214,13 @@
 
         if (res.ok) {
           msg.className = 'msg success';
-          msg.textContent = "You're subscribed! You'll receive your first digest this Thursday.";
+          msg.textContent = isWaitlist
+            ? "You're on the waitlist! We'll email you when MyBloc launches in your city."
+            : "You're subscribed! You'll receive your first digest this Thursday.";
           msg.style.display = 'block';
           form.reset();
+          wardSection.style.display = '';
+          cityUnavailable.style.display = 'none';
         } else {
           msg.className = 'msg error';
           msg.textContent = data.error || 'Something went wrong.';

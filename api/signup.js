@@ -30,11 +30,35 @@ module.exports = async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { email, ward, housing, transport, income, has_kids, interests } = req.body || {};
+  const { email, city, ward, housing, transport, income, has_kids, interests, waitlist } = req.body || {};
 
   // Validate email
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return res.status(400).json({ error: 'A valid email address is required.' });
+  }
+
+  // Waitlist signup — only need email and city
+  if (waitlist) {
+    try {
+      const { data, error } = await supabase.from('profiles').insert({
+        email: email.toLowerCase().trim(),
+        city: city || 'Unknown',
+        active: false
+      }).select('id').single();
+
+      if (error) {
+        if (error.code === '23505') {
+          return res.status(409).json({ error: 'This email is already on our list.' });
+        }
+        console.error('Waitlist error:', error);
+        return res.status(500).json({ error: 'Failed to join waitlist.' });
+      }
+
+      return res.status(200).json({ success: true, id: data.id, waitlist: true });
+    } catch (err) {
+      console.error('Waitlist handler error:', err);
+      return res.status(500).json({ error: 'Internal error.' });
+    }
   }
 
   // Validate ward
@@ -60,6 +84,7 @@ module.exports = async function handler(req, res) {
   try {
     const { data, error } = await supabase.from('profiles').insert({
       email: email.toLowerCase().trim(),
+      city: city || 'Jersey City',
       ward,
       housing,
       transport,

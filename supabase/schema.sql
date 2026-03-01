@@ -18,7 +18,8 @@ create table ordinances (
 create table profiles (
   id          uuid primary key default gen_random_uuid(),
   email       text unique not null,
-  ward        text,                           -- A | B | C | D | E | F
+  city        text default 'Jersey City',     -- city name; non-JC users are waitlisted (active=false)
+  ward        text,                           -- A | B | C | D | E | F (Jersey City specific)
   housing     text,                           -- Renter | Homeowner | Section 8
   transport   text,                           -- No car | Car owner | Transit dependent
   has_kids    boolean default false,

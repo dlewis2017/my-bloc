@@ -47,6 +47,9 @@
         <label>Email</label>
         <div class="email-display" id="email-display"></div>
 
+        <label>City</label>
+        <div class="email-display" id="city-display"></div>
+
         <label for="ward">Ward</label>
         <select id="ward" name="ward" required>
           <option value="">Select your ward</option>
@@ -153,6 +156,7 @@
         const profile = await res.json();
 
         document.getElementById('email-display').textContent = profile.email;
+        document.getElementById('city-display').textContent = profile.city || 'Jersey City';
         form.ward.value = profile.ward || '';
         form.income.value = profile.income || '';
 
