@@ -3,184 +3,162 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>CivicPulse — Sign Up</title>
+  <title>MyBloc — Your city council, explained</title>
+  <meta name="description" content="Get a personalized weekly digest of what your city council is doing and why it matters to you.">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f9fafb; color: #111827; }
-    .container { max-width: 520px; margin: 0 auto; padding: 32px 20px; }
-    .header { text-align: center; margin-bottom: 32px; }
-    .header h1 { font-size: 28px; margin-bottom: 4px; }
-    .header p { color: #6b7280; font-size: 15px; }
-    .card { background: #fff; border-radius: 12px; padding: 28px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-    label { display: block; font-weight: 600; font-size: 14px; margin-bottom: 6px; margin-top: 20px; }
-    label:first-of-type { margin-top: 0; }
-    input[type="email"] { width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 15px; }
-    input[type="email"]:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.15); }
-    select { width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 15px; background: #fff; }
-    .radio-group, .checkbox-group { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
-    .radio-group label, .checkbox-group label { font-weight: 400; display: flex; align-items: center; gap: 6px; background: #f3f4f6; padding: 8px 14px; border-radius: 8px; cursor: pointer; margin: 0; font-size: 14px; }
-    .radio-group label:has(input:checked), .checkbox-group label:has(input:checked) { background: #eff6ff; border: 1px solid #bfdbfe; }
-    .radio-group label { border: 1px solid transparent; }
-    .checkbox-group label { border: 1px solid transparent; }
-    .kids-row { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
-    .kids-row label { margin: 0; font-weight: 400; font-size: 14px; }
-    .section-label { font-weight: 600; font-size: 14px; margin-top: 20px; margin-bottom: 4px; }
-    .tier-label { font-size: 12px; color: #6b7280; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 12px; margin-bottom: 4px; }
-    .tier-label:first-of-type { margin-top: 0; }
-    button { width: 100%; margin-top: 28px; padding: 12px; background: #2563eb; color: #fff; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; }
-    button:hover { background: #1d4ed8; }
-    button:disabled { background: #93c5fd; cursor: not-allowed; }
-    .msg { margin-top: 16px; padding: 12px; border-radius: 8px; font-size: 14px; text-align: center; }
-    .msg.success { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
-    .msg.error { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #fff; color: #111827; }
+
+    /* Nav */
+    nav { display: flex; justify-content: space-between; align-items: center; max-width: 960px; margin: 0 auto; padding: 20px 24px; }
+    .logo { font-size: 22px; font-weight: 800; color: #111827; text-decoration: none; letter-spacing: -0.5px; }
+    .logo span { color: #2563eb; }
+    nav a.nav-link { color: #6b7280; text-decoration: none; font-size: 14px; font-weight: 500; }
+    nav a.nav-link:hover { color: #111827; }
+
+    /* Hero */
+    .hero { max-width: 960px; margin: 0 auto; padding: 60px 24px 48px; text-align: center; }
+    .hero h1 { font-size: 48px; font-weight: 800; letter-spacing: -1.5px; line-height: 1.1; margin-bottom: 20px; }
+    .hero h1 span { color: #2563eb; }
+    .hero .subtitle { font-size: 20px; color: #4b5563; line-height: 1.5; max-width: 560px; margin: 0 auto 32px; }
+    .hero .cta { display: inline-block; padding: 14px 32px; background: #2563eb; color: #fff; text-decoration: none; border-radius: 10px; font-size: 16px; font-weight: 600; transition: background 0.2s; }
+    .hero .cta:hover { background: #1d4ed8; }
+    .hero .city-tag { display: inline-block; margin-top: 16px; padding: 6px 14px; background: #eff6ff; color: #2563eb; border-radius: 20px; font-size: 13px; font-weight: 600; }
+
+    /* How it works */
+    .how-section { background: #f9fafb; padding: 64px 24px; }
+    .how-section .inner { max-width: 960px; margin: 0 auto; }
+    .how-section h2 { text-align: center; font-size: 28px; font-weight: 700; margin-bottom: 40px; letter-spacing: -0.5px; }
+    .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; }
+    .step { text-align: center; }
+    .step-num { display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; background: #2563eb; color: #fff; border-radius: 50%; font-size: 16px; font-weight: 700; margin-bottom: 16px; }
+    .step h3 { font-size: 17px; font-weight: 600; margin-bottom: 8px; }
+    .step p { font-size: 14px; color: #6b7280; line-height: 1.6; }
+
+    /* Example */
+    .example-section { padding: 64px 24px; max-width: 960px; margin: 0 auto; }
+    .example-section h2 { text-align: center; font-size: 28px; font-weight: 700; margin-bottom: 12px; letter-spacing: -0.5px; }
+    .example-section .sub { text-align: center; color: #6b7280; font-size: 15px; margin-bottom: 36px; }
+    .examples { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+    .example-card { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; padding: 24px; }
+    .example-card .persona { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: #2563eb; margin-bottom: 8px; }
+    .example-card h4 { font-size: 15px; font-weight: 600; margin-bottom: 8px; }
+    .example-card p { font-size: 14px; color: #4b5563; line-height: 1.6; }
+
+    /* Topics */
+    .topics-section { background: #f9fafb; padding: 64px 24px; }
+    .topics-section .inner { max-width: 960px; margin: 0 auto; text-align: center; }
+    .topics-section h2 { font-size: 28px; font-weight: 700; margin-bottom: 12px; letter-spacing: -0.5px; }
+    .topics-section .sub { color: #6b7280; font-size: 15px; margin-bottom: 28px; }
+    .topic-tags { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; max-width: 600px; margin: 0 auto; }
+    .topic-tag { padding: 8px 16px; background: #fff; border: 1px solid #e5e7eb; border-radius: 20px; font-size: 14px; color: #374151; font-weight: 500; }
+
+    /* Bottom CTA */
+    .bottom-cta { padding: 64px 24px; text-align: center; max-width: 960px; margin: 0 auto; }
+    .bottom-cta h2 { font-size: 32px; font-weight: 800; letter-spacing: -1px; margin-bottom: 12px; }
+    .bottom-cta p { font-size: 16px; color: #6b7280; margin-bottom: 28px; }
+    .bottom-cta .cta { display: inline-block; padding: 14px 32px; background: #2563eb; color: #fff; text-decoration: none; border-radius: 10px; font-size: 16px; font-weight: 600; transition: background 0.2s; }
+    .bottom-cta .cta:hover { background: #1d4ed8; }
+
+    /* Footer */
+    footer { border-top: 1px solid #e5e7eb; padding: 24px; text-align: center; font-size: 13px; color: #9ca3af; }
+    footer a { color: #9ca3af; text-decoration: none; }
+    footer a:hover { color: #6b7280; }
+
+    /* Mobile */
+    @media (max-width: 640px) {
+      .hero h1 { font-size: 32px; }
+      .hero .subtitle { font-size: 17px; }
+      .steps { grid-template-columns: 1fr; gap: 24px; }
+      .examples { grid-template-columns: 1fr; }
+    }
   </style>
 </head>
 <body>
-  <div class="container">
-    <div class="header">
-      <h1>CivicPulse</h1>
-      <p>Get a personalized weekly digest of Jersey City government activity that matters to you.</p>
+
+  <nav>
+    <a href="/" class="logo">my<span>bloc</span></a>
+    <a href="/signup.html" class="nav-link">Sign up</a>
+  </nav>
+
+  <section class="hero">
+    <h1>Your city council,<br><span>explained.</span></h1>
+    <p class="subtitle">Get a personalized weekly digest of what your local government is doing — and why it matters to you specifically.</p>
+    <a href="/signup.html" class="cta">Get started — it's free</a>
+    <br>
+    <span class="city-tag">Now available in Jersey City, NJ</span>
+  </section>
+
+  <section class="how-section">
+    <div class="inner">
+      <h2>How it works</h2>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <h3>Tell us about you</h3>
+          <p>Your ward, housing situation, and what topics matter to you. Takes 60 seconds.</p>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <h3>We read the agenda</h3>
+          <p>We monitor your city council's ordinances, resolutions, and votes so you don't have to.</p>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <h3>You get your digest</h3>
+          <p>A weekly email explaining what happened, what it means for you, and how to make your voice heard.</p>
+        </div>
+      </div>
     </div>
-    <div class="card">
-      <form id="signup-form">
-        <label for="email">Email</label>
-        <input type="email" id="email" name="email" required placeholder="you@example.com">
+  </section>
 
-        <label for="ward">Ward</label>
-        <select id="ward" name="ward" required>
-          <option value="">Select your ward</option>
-          <option value="A">Ward A — Greenville</option>
-          <option value="B">Ward B — West Side</option>
-          <option value="C">Ward C — Journal Square</option>
-          <option value="D">Ward D — The Heights</option>
-          <option value="E">Ward E — Historic Downtown</option>
-          <option value="F">Ward F — Bergen-Lafayette</option>
-        </select>
-
-        <label>Housing</label>
-        <div class="radio-group">
-          <label><input type="radio" name="housing" value="Renter" required><span>Renter</span></label>
-          <label><input type="radio" name="housing" value="Homeowner"><span>Homeowner</span></label>
-          <label><input type="radio" name="housing" value="Section 8"><span>Section 8</span></label>
-        </div>
-
-        <label>Transportation</label>
-        <div class="radio-group">
-          <label><input type="radio" name="transport" value="No car" required><span>No car</span></label>
-          <label><input type="radio" name="transport" value="Car owner"><span>Car owner</span></label>
-          <label><input type="radio" name="transport" value="Transit dependent"><span>Transit dependent</span></label>
-        </div>
-
-        <label for="income">Household income</label>
-        <select id="income" name="income">
-          <option value="">Prefer not to say</option>
-          <option value="Under $50K">Under $50K</option>
-          <option value="$50K-$100K">$50K–$100K</option>
-          <option value="$100K-$200K">$100K–$200K</option>
-          <option value="Over $200K">Over $200K</option>
-        </select>
-
-        <label>Children</label>
-        <div class="kids-row">
-          <input type="checkbox" id="has_kids" name="has_kids">
-          <label for="has_kids">I have school-age children</label>
-        </div>
-
-        <div class="section-label">What topics matter to you?</div>
-
-        <div class="tier-label">Daily Life</div>
-        <div class="checkbox-group">
-          <label><input type="checkbox" name="interests" value="rent control"><span>Rent control</span></label>
-          <label><input type="checkbox" name="interests" value="property tax"><span>Property tax</span></label>
-          <label><input type="checkbox" name="interests" value="parking"><span>Parking</span></label>
-          <label><input type="checkbox" name="interests" value="noise"><span>Noise</span></label>
-          <label><input type="checkbox" name="interests" value="utilities"><span>Utilities</span></label>
-        </div>
-
-        <div class="tier-label">Getting Around</div>
-        <div class="checkbox-group">
-          <label><input type="checkbox" name="interests" value="transit"><span>Transit</span></label>
-          <label><input type="checkbox" name="interests" value="bike lanes"><span>Bike lanes</span></label>
-          <label><input type="checkbox" name="interests" value="roads"><span>Roads</span></label>
-          <label><input type="checkbox" name="interests" value="sidewalks"><span>Sidewalks</span></label>
-        </div>
-
-        <div class="tier-label">Community</div>
-        <div class="checkbox-group">
-          <label><input type="checkbox" name="interests" value="schools"><span>Schools</span></label>
-          <label><input type="checkbox" name="interests" value="parks"><span>Parks</span></label>
-          <label><input type="checkbox" name="interests" value="public safety"><span>Public safety</span></label>
-          <label><input type="checkbox" name="interests" value="senior services"><span>Senior services</span></label>
-          <label><input type="checkbox" name="interests" value="youth programs"><span>Youth programs</span></label>
-        </div>
-
-        <div class="tier-label">Growth &amp; Economy</div>
-        <div class="checkbox-group">
-          <label><input type="checkbox" name="interests" value="development"><span>Development</span></label>
-          <label><input type="checkbox" name="interests" value="zoning"><span>Zoning</span></label>
-          <label><input type="checkbox" name="interests" value="jobs"><span>Jobs</span></label>
-          <label><input type="checkbox" name="interests" value="small business"><span>Small business</span></label>
-          <label><input type="checkbox" name="interests" value="affordable housing"><span>Affordable housing</span></label>
-        </div>
-
-        <button type="submit">Subscribe</button>
-      </form>
-      <div id="msg" class="msg" style="display:none;"></div>
+  <section class="example-section">
+    <h2>Same agenda, different story</h2>
+    <p class="sub">Two residents get completely different emails based on what matters to them.</p>
+    <div class="examples">
+      <div class="example-card">
+        <div class="persona">Renter in Ward C</div>
+        <h4>Ordinance 23-045: Rent Control Amendment</h4>
+        <p>"This would cap your annual rent increase at 4% instead of the current 5%. As a Journal Square renter, this directly affects your lease renewal..."</p>
+      </div>
+      <div class="example-card">
+        <div class="persona">Homeowner in Ward A</div>
+        <h4>Ordinance 23-045: Rent Control Amendment</h4>
+        <p>"This expands rent control protections in your area. As a property owner, this could affect rental income if you lease units in your building..."</p>
+      </div>
     </div>
-  </div>
+  </section>
 
-  <script>
-    const form = document.getElementById('signup-form');
-    const msg = document.getElementById('msg');
+  <section class="topics-section">
+    <div class="inner">
+      <h2>Topics we cover</h2>
+      <p class="sub">Pick the issues that matter to you. We'll highlight them in your digest.</p>
+      <div class="topic-tags">
+        <span class="topic-tag">Rent control</span>
+        <span class="topic-tag">Property tax</span>
+        <span class="topic-tag">Parking</span>
+        <span class="topic-tag">Transit</span>
+        <span class="topic-tag">Bike lanes</span>
+        <span class="topic-tag">Schools</span>
+        <span class="topic-tag">Public safety</span>
+        <span class="topic-tag">Development</span>
+        <span class="topic-tag">Zoning</span>
+        <span class="topic-tag">Affordable housing</span>
+        <span class="topic-tag">Parks</span>
+        <span class="topic-tag">Small business</span>
+      </div>
+    </div>
+  </section>
 
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const btn = form.querySelector('button');
-      btn.disabled = true;
-      btn.textContent = 'Subscribing...';
-      msg.style.display = 'none';
+  <section class="bottom-cta">
+    <h2>Know what your city is doing.</h2>
+    <p>Free. Personalized. One email a week.</p>
+    <a href="/signup.html" class="cta">Sign up now</a>
+  </section>
 
-      const interests = Array.from(form.querySelectorAll('input[name="interests"]:checked')).map(el => el.value);
-      const housing = form.querySelector('input[name="housing"]:checked');
-      const transport = form.querySelector('input[name="transport"]:checked');
+  <footer>
+    <p>MyBloc &copy; 2026 <a href="https://depopulus.com">DePopulus LLC</a></p>
+  </footer>
 
-      const body = {
-        email: form.email.value,
-        ward: form.ward.value,
-        housing: housing ? housing.value : '',
-        transport: transport ? transport.value : '',
-        income: form.income.value || null,
-        has_kids: form.has_kids.checked,
-        interests
-      };
-
-      try {
-        const res = await fetch('/api/signup', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body)
-        });
-        const data = await res.json();
-
-        if (res.ok) {
-          msg.className = 'msg success';
-          msg.textContent = "You're subscribed! You'll receive your first digest this Thursday.";
-          msg.style.display = 'block';
-          form.reset();
-        } else {
-          msg.className = 'msg error';
-          msg.textContent = data.error || 'Something went wrong.';
-          msg.style.display = 'block';
-        }
-      } catch (err) {
-        msg.className = 'msg error';
-        msg.textContent = 'Network error. Please try again.';
-        msg.style.display = 'block';
-      }
-
-      btn.disabled = false;
-      btn.textContent = 'Subscribe';
-    });
-  </script>
 </body>
 </html>

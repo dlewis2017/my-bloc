@@ -3,18 +3,22 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>MyBloc — Manage Profile</title>
+  <title>MyBloc — Sign Up</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f9fafb; color: #111827; }
-    .container { max-width: 520px; margin: 0 auto; padding: 32px 20px; }
-    .header { text-align: center; margin-bottom: 32px; }
-    .header h1 { font-size: 28px; margin-bottom: 4px; }
+    nav { display: flex; justify-content: space-between; align-items: center; max-width: 520px; margin: 0 auto; padding: 20px 20px 0; }
+    .logo { font-size: 22px; font-weight: 800; color: #111827; text-decoration: none; letter-spacing: -0.5px; }
+    .logo span { color: #2563eb; }
+    .container { max-width: 520px; margin: 0 auto; padding: 24px 20px 32px; }
+    .header { text-align: center; margin-bottom: 24px; }
+    .header h1 { font-size: 24px; margin-bottom: 4px; }
     .header p { color: #6b7280; font-size: 15px; }
     .card { background: #fff; border-radius: 12px; padding: 28px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
     label { display: block; font-weight: 600; font-size: 14px; margin-bottom: 6px; margin-top: 20px; }
     label:first-of-type { margin-top: 0; }
-    .email-display { padding: 10px 12px; background: #f3f4f6; border-radius: 8px; font-size: 15px; color: #6b7280; }
+    input[type="email"] { width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 15px; }
+    input[type="email"]:focus { outline: none; border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,0.15); }
     select { width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 15px; background: #fff; }
     .radio-group, .checkbox-group { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
     .radio-group label, .checkbox-group label { font-weight: 400; display: flex; align-items: center; gap: 6px; background: #f3f4f6; padding: 8px 14px; border-radius: 8px; cursor: pointer; margin: 0; font-size: 14px; }
@@ -32,20 +36,21 @@
     .msg { margin-top: 16px; padding: 12px; border-radius: 8px; font-size: 14px; text-align: center; }
     .msg.success { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
     .msg.error { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
-    .loading { text-align: center; padding: 48px; color: #6b7280; }
   </style>
 </head>
 <body>
+  <nav>
+    <a href="/" class="logo">my<span>bloc</span></a>
+  </nav>
   <div class="container">
     <div class="header">
-      <h1><a href="/" style="text-decoration:none;color:#111827;letter-spacing:-0.5px;">my<span style="color:#2563eb;">bloc</span></a></h1>
-      <p>Update your profile to get more relevant digests.</p>
+      <h1>Sign up</h1>
+      <p>Tell us about you so we can personalize your weekly digest.</p>
     </div>
     <div class="card">
-      <div id="loading" class="loading">Loading your profile...</div>
-      <form id="profile-form" style="display:none;">
-        <label>Email</label>
-        <div class="email-display" id="email-display"></div>
+      <form id="signup-form">
+        <label for="email">Email</label>
+        <input type="email" id="email" name="email" required placeholder="you@example.com">
 
         <label for="ward">Ward</label>
         <select id="ward" name="ward" required>
@@ -124,67 +129,21 @@
           <label><input type="checkbox" name="interests" value="affordable housing"><span>Affordable housing</span></label>
         </div>
 
-        <button type="submit">Save Changes</button>
+        <button type="submit">Subscribe</button>
       </form>
       <div id="msg" class="msg" style="display:none;"></div>
     </div>
   </div>
 
   <script>
-    const params = new URLSearchParams(window.location.search);
-    const userId = params.get('user');
-    const form = document.getElementById('profile-form');
-    const loading = document.getElementById('loading');
+    const form = document.getElementById('signup-form');
     const msg = document.getElementById('msg');
-
-    if (!userId) {
-      loading.textContent = 'Invalid link. Please use the link from your digest email.';
-    } else {
-      loadProfile();
-    }
-
-    async function loadProfile() {
-      try {
-        const res = await fetch(`/api/profile?user=${userId}`);
-        if (!res.ok) {
-          loading.textContent = 'Profile not found.';
-          return;
-        }
-        const profile = await res.json();
-
-        document.getElementById('email-display').textContent = profile.email;
-        form.ward.value = profile.ward || '';
-        form.income.value = profile.income || '';
-
-        if (profile.housing) {
-          const radio = form.querySelector(`input[name="housing"][value="${profile.housing}"]`);
-          if (radio) radio.checked = true;
-        }
-        if (profile.transport) {
-          const radio = form.querySelector(`input[name="transport"][value="${profile.transport}"]`);
-          if (radio) radio.checked = true;
-        }
-        form.has_kids.checked = profile.has_kids || false;
-
-        if (Array.isArray(profile.interests)) {
-          profile.interests.forEach(interest => {
-            const cb = form.querySelector(`input[name="interests"][value="${interest}"]`);
-            if (cb) cb.checked = true;
-          });
-        }
-
-        loading.style.display = 'none';
-        form.style.display = 'block';
-      } catch (err) {
-        loading.textContent = 'Failed to load profile. Please try again.';
-      }
-    }
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       const btn = form.querySelector('button');
       btn.disabled = true;
-      btn.textContent = 'Saving...';
+      btn.textContent = 'Subscribing...';
       msg.style.display = 'none';
 
       const interests = Array.from(form.querySelectorAll('input[name="interests"]:checked')).map(el => el.value);
@@ -192,29 +151,31 @@
       const transport = form.querySelector('input[name="transport"]:checked');
 
       const body = {
+        email: form.email.value,
         ward: form.ward.value,
-        housing: housing ? housing.value : undefined,
-        transport: transport ? transport.value : undefined,
+        housing: housing ? housing.value : '',
+        transport: transport ? transport.value : '',
         income: form.income.value || null,
         has_kids: form.has_kids.checked,
         interests
       };
 
       try {
-        const res = await fetch(`/api/profile?user=${userId}`, {
-          method: 'PUT',
+        const res = await fetch('/api/signup', {
+          method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body)
         });
+        const data = await res.json();
 
         if (res.ok) {
           msg.className = 'msg success';
-          msg.textContent = 'Profile updated! Your next digest will reflect these changes.';
+          msg.textContent = "You're subscribed! You'll receive your first digest this Thursday.";
           msg.style.display = 'block';
+          form.reset();
         } else {
-          const data = await res.json();
           msg.className = 'msg error';
-          msg.textContent = data.error || 'Failed to save changes.';
+          msg.textContent = data.error || 'Something went wrong.';
           msg.style.display = 'block';
         }
       } catch (err) {
@@ -224,7 +185,7 @@
       }
 
       btn.disabled = false;
-      btn.textContent = 'Save Changes';
+      btn.textContent = 'Subscribe';
     });
   </script>
 </body>
