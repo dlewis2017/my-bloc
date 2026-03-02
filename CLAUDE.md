@@ -20,7 +20,7 @@ CivicWeb (Playwright) → PDF Extract → State Tracker → Claude Analysis → 
 - **Scraping:** Playwright (headless Chromium)
 - **PDF Parsing:** `pdf-parse` v2 (class-based API)
 - **Web/API:** Vercel (serverless functions + static hosting)
-- **Deployment:** `mybloc.co`, GitHub repo `dlewis2017/civic-pulse-2`
+- **Deployment:** `mybloc.co`, GitHub repo `dlewis2017/my-bloc`, Vercel project `civicpulse` (must `vercel link --project civicpulse` before deploying)
 
 ## File Structure
 
@@ -37,7 +37,7 @@ civicpulse/
 │   └── run-digest.js            ← full pipeline orchestrator (fetch → track → analyze → email)
 ├── api/
 │   ├── vote.js                  ← thumbs up/down handler (redirects to /thanks.html)
-│   ├── signup.js                ← POST subscriber registration + welcome email
+│   ├── signup.js                ← POST subscriber registration + welcome email (re-activates inactive users)
 │   ├── welcome.js               ← POST manual welcome email re-send ({ userId })
 │   ├── profile.js               ← GET/PUT subscriber profile
 │   └── unsubscribe.js           ← sets active=false, redirects to /thanks.html
@@ -143,10 +143,10 @@ The state tracker is idempotent — running twice on the same data produces the 
 - **Vote links must use real ordinance IDs** from `ordinances.id` — FK constraint on `votes.ordinance_id`
 - **Vote handler redirects to `/thanks.html`** not `/thanks`
 - **CivicWeb main page lists meetings**, not agenda items — must navigate into individual meetings
-- **Vercel CLI** `vercel deploy` creates a new project by default — use `vercel link` first. Domain: `mybloc.co`
+- **Vercel CLI** must be linked to the correct project (`vercel link --project civicpulse`) before deploying — otherwise it creates a new project that won't serve `mybloc.co`
 - **Email footer** includes both "Manage profile" and "Unsubscribe" links
 - **pdf-parse v2** uses a class-based API (`new PDFParse({ data })` + `.load()` + `.getText()`) not a function call
-- **Welcome email depends on `ward_highlights`** being seeded — if the table is empty (e.g. fresh deploy), welcome emails are silently skipped and signup still succeeds
+- **Welcome email works without `ward_highlights`** — sends a simpler welcome with council rep info and "your first digest arrives Thursday" when no highlights are cached
 - **Pipeline re-runs on already-notified items** won't reach the ward caching step — to re-seed `ward_highlights` manually, reset `notified_at` or write a one-off seed script
 - **Supabase remote SQL** — use `psql "$SUPABASE_DB_URL"` for DDL; the Supabase CLI (`v2.75.0`, installed via `brew install supabase/tap/supabase`) does not have a `db execute` command
 
