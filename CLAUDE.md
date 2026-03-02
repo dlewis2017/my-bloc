@@ -62,9 +62,15 @@ civicpulse/
 # Run full digest pipeline (fetch → state track → Claude analyze → send emails)
 node scripts/run-digest.js
 
+# Full pipeline test (sends only to test email, safe to re-run)
+node test/test-full-pipeline.js --all              # all items, uses TEST_EMAIL from .env
+node test/test-full-pipeline.js --all user@email   # all items, custom email
+node test/test-full-pipeline.js                    # new items only (production-like)
+
 # Test individual components
 node scripts/fetch-civicweb.js   # scrape + extract PDFs, print results
 node test/test-fetch.js          # verify fetch returns valid items
+node test/test-fetch-folders.js  # verify multi-source scraper (folders + agenda PDF)
 node test/test-state-tracker.js  # verify upsert state machine
 node test/test-claude-prompt.js  # verify Claude returns valid JSON
 node test/test-email.js          # send test digest email
@@ -91,8 +97,15 @@ TEST_EMAIL=your-test-email@example.com
 CivicWeb has a 3-level navigation (not flat HTML):
 
 1. **Meeting list page** (`/Portal/MeetingInformation.aspx`) — lists meetings with `a.list-link` elements
-2. **Meeting page** (`/Portal/MeetingInformation.aspx?Id=...`) — has links to document folders including "ORDINANCES - RESOLUTIONS"
-3. **Document folder** (`/filepro/documents/...`) — lists individual ordinance/resolution PDFs
+2. **Meeting page** (`/Portal/MeetingInformation.aspx?Id=...`) — has document folder links + Agenda Packet PDF
+3. **Document folder** (`/filepro/documents/{id}`) — lists individual ordinance/resolution PDFs
+4. **Agenda Packet PDF** (`/document/{id}`) — full agenda with embedded sections for communications, appointments, claims
+
+Two data sources per meeting:
+- **Document folder** → ordinances + resolutions (individual PDFs, full text extraction)
+- **Agenda PDF** → community notices parsed from structured sections (6=Petitions & Communications, 8=Reports of Directors)
+
+**IMPORTANT — Date/navigation validation:** CivicWeb's navigation can be confusing. Always verify you're scraping the correct meeting date/year. The meeting list page may show meetings across multiple years, and folder links must have a specific ID (`/filepro/documents/441866`), not the root `/filepro/documents` which is a site-wide "Document Center" link. Future cities may have similar navigation pitfalls.
 
 PDF extraction flow:
 - Preview URLs (e.g. `?preview=444662`) return an HTML viewer page, NOT raw PDFs

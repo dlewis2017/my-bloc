@@ -23,7 +23,7 @@ module.exports = async function handler(req, res) {
       return res.status(500).send('Failed to unsubscribe.');
     }
 
-    res.redirect(302, '/thanks.html');
+    res.redirect(302, '/thanks.html?reason=unsubscribed');
   } catch (err) {
     console.error('Unsubscribe handler error:', err);
     res.status(500).send('Internal error.');

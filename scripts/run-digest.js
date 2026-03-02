@@ -3,13 +3,17 @@ require('dotenv').config();
 const { createClient } = require('@supabase/supabase-js');
 const { fetchCivicWeb } = require('./fetch-civicweb');
 const { upsertOrdinance, getUnnotifiedOrdinances, markNotified, getVoteTotals } = require('./state-tracker');
-const { analyzeOrdinance } = require('./claude-analyzer');
+const { analyzeOrdinance, bulkFilterItems } = require('./claude-analyzer');
 const { sendDigest, generateSubjectLine } = require('./send-digest');
 
 const MIN_RELEVANCE_SCORE = 5;
 const MAX_ITEMS_PER_DIGEST = 10;
+const MAX_NOTICES_PER_DIGEST = 5;
 const MAX_MEETINGS = 2;
 const CONCURRENCY = 2; // parallel Claude API calls (kept low for 30k tokens/min rate limit)
+
+// Doc types that get deep per-item analysis (tier 2)
+const DEEP_ANALYSIS_TYPES = new Set(['ordinance', 'resolution']);
 
 /**
  * Full digest pipeline: fetch → state track → Claude analyze → send emails.
@@ -90,53 +94,82 @@ async function runDigest(deps = {}) {
     return;
   }
 
-  // Step 6: For each profile, analyze each ordinance with Claude
-  console.log('Step 6: Analyzing ordinances per profile with Claude...');
+  // Split unnotified items into ordinances (deep analysis) and notices (bulk filter)
+  const deepItems = unnotified.filter(o => DEEP_ANALYSIS_TYPES.has(o.doc_type));
+  const noticeItems = unnotified.filter(o => !DEEP_ANALYSIS_TYPES.has(o.doc_type));
+  console.log(`  ${deepItems.length} ordinances/resolutions (deep analysis), ${noticeItems.length} community notices (bulk filter)\n`);
+
+  // Step 6: For each profile, analyze with two-tier approach
+  console.log('Step 6: Analyzing items per profile with Claude...');
   const weekDate = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
   let emailsSent = 0;
   const cachedWards = new Set();
+  const bulkFilter = deps.bulkFilterItems || bulkFilterItems;
 
   for (const profile of profiles) {
     console.log(`\n  Analyzing for ${profile.email} (Ward ${profile.ward})...`);
     const relevantItems = [];
     let completed = 0;
 
-    // Process ordinances in parallel batches
-    for (let i = 0; i < unnotified.length; i += CONCURRENCY) {
-      const batch = unnotified.slice(i, i + CONCURRENCY);
-      const results = await Promise.allSettled(
-        batch.map(async (ord) => {
-          const textForAnalysis = ord.full_text || ord.title;
-          const analysis = await analyze(textForAnalysis, profile);
-          return { ord, analysis };
-        })
-      );
+    // Tier 2: Deep analysis for ordinances/resolutions (1 call per item)
+    if (deepItems.length > 0) {
+      console.log(`    Deep analysis: ${deepItems.length} ordinances/resolutions...`);
+      for (let i = 0; i < deepItems.length; i += CONCURRENCY) {
+        const batch = deepItems.slice(i, i + CONCURRENCY);
+        const results = await Promise.allSettled(
+          batch.map(async (ord) => {
+            const textForAnalysis = ord.full_text || ord.title;
+            const analysis = await analyze(textForAnalysis, profile);
+            return { ord, analysis };
+          })
+        );
 
-      for (const result of results) {
-        completed++;
-        if (result.status === 'fulfilled') {
-          const { ord, analysis } = result.value;
-          if (analysis.relevance_score >= MIN_RELEVANCE_SCORE) {
-            relevantItems.push({
-              ...analysis,
-              ordinance_id: ord.id,
-              doc_type: ord.doc_type,
-              source_url: ord.source_url || null,
-              meeting_url: ord.meeting_url || null,
-              vote_totals: voteTotals[ord.id] || null
-            });
-            console.log(`    [${completed}/${unnotified.length}] ${ord.ordinance_num}: score ${analysis.relevance_score} — "${analysis.plain_title}"`);
+        for (const result of results) {
+          completed++;
+          if (result.status === 'fulfilled') {
+            const { ord, analysis } = result.value;
+            if (analysis.relevance_score >= MIN_RELEVANCE_SCORE) {
+              relevantItems.push({
+                ...analysis,
+                ordinance_id: ord.id,
+                doc_type: ord.doc_type,
+                source_url: ord.source_url || null,
+                meeting_url: ord.meeting_url || null,
+                vote_totals: voteTotals[ord.id] || null
+              });
+              console.log(`    [${completed}/${deepItems.length}] ${ord.ordinance_num}: score ${analysis.relevance_score} — "${analysis.plain_title}"`);
+            } else {
+              console.log(`    [${completed}/${deepItems.length}] ${ord.ordinance_num}: score ${analysis.relevance_score} (filtered out)`);
+            }
           } else {
-            console.log(`    [${completed}/${unnotified.length}] ${ord.ordinance_num}: score ${analysis.relevance_score} (filtered out)`);
+            const ord = batch[results.indexOf(result)];
+            console.warn(`    [${completed}/${deepItems.length}] ${ord.ordinance_num}: analysis failed — ${result.reason?.message || result.reason}`);
           }
-        } else {
-          const ord = batch[results.indexOf(result)];
-          console.warn(`    [${completed}/${unnotified.length}] ${ord.ordinance_num}: analysis failed — ${result.reason?.message || result.reason}`);
         }
       }
     }
 
-    // Sort by total votes (most engagement first), then relevance score
+    // Tier 1: Bulk filter for community notices (1 call total)
+    let relevantNotices = [];
+    if (noticeItems.length > 0) {
+      console.log(`    Bulk filtering: ${noticeItems.length} community notices...`);
+      try {
+        const filtered = await bulkFilter(noticeItems, profile);
+        relevantNotices = filtered.map(f => ({
+          ...f,
+          ordinance_id: noticeItems[f.index]?.id,
+          doc_type: noticeItems[f.index]?.doc_type || 'notice',
+          source_url: noticeItems[f.index]?.source_url || null,
+          meeting_url: noticeItems[f.index]?.meeting_url || null,
+          is_notice: true
+        }));
+        console.log(`    ${relevantNotices.length} notices relevant to this person`);
+      } catch (err) {
+        console.warn(`    Bulk filter failed: ${err.message}`);
+      }
+    }
+
+    // Sort ordinances by total votes then relevance score
     relevantItems.sort((a, b) => {
       const aVotes = (a.vote_totals ? a.vote_totals.up + a.vote_totals.down : 0);
       const bVotes = (b.vote_totals ? b.vote_totals.up + b.vote_totals.down : 0);
@@ -144,21 +177,19 @@ async function runDigest(deps = {}) {
       return b.relevance_score - a.relevance_score;
     });
 
-    // Cap at max items
+    // Cap each tier separately
     const cappedItems = relevantItems.slice(0, MAX_ITEMS_PER_DIGEST);
-    const dropped = relevantItems.length - cappedItems.length;
+    const cappedNotices = relevantNotices.slice(0, MAX_NOTICES_PER_DIGEST);
 
-    if (!cappedItems.length) {
+    if (!cappedItems.length && !cappedNotices.length) {
       console.log(`  No relevant items for ${profile.email}, skipping email.`);
       continue;
     }
 
-    if (dropped > 0) {
-      console.log(`  Capped: showing ${cappedItems.length} of ${relevantItems.length} relevant items`);
-    }
+    console.log(`  ${cappedItems.length} ordinances + ${cappedNotices.length} notices for digest`);
 
-    // Cache top 3 items for welcome emails (first subscriber per ward wins)
-    if (profile.ward && !cachedWards.has(profile.ward)) {
+    // Cache top 3 ordinance items for welcome emails (first subscriber per ward wins)
+    if (profile.ward && !cachedWards.has(profile.ward) && cappedItems.length > 0) {
       cachedWards.add(profile.ward);
       const highlightItems = cappedItems.slice(0, 3);
       try {
@@ -175,9 +206,9 @@ async function runDigest(deps = {}) {
     }
 
     // Step 7: Send personalized digest email
-    console.log(`  Sending digest with ${cappedItems.length} items to ${profile.email}...`);
+    console.log(`  Sending digest to ${profile.email}...`);
     try {
-      const result = await send(profile, cappedItems, weekDate);
+      const result = await send(profile, cappedItems, weekDate, cappedNotices);
       console.log(`  Sent! ID: ${result.id}`);
       emailsSent++;
     } catch (err) {

@@ -123,4 +123,107 @@ async function analyzeOrdinance(ordinanceText, profile, maxRetries = 3) {
   throw lastError;
 }
 
-module.exports = { analyzeOrdinance, buildPrompt };
+const BULK_FILTER_PROMPT = `You are a sharp, straight-talking neighbor who knows everything about Jersey City government. You explain local politics the way you'd text a friend — casual, concrete, and real.
+
+Below is a list of consent agenda / community notice items from this week's city council meeting. Most are routine — but some will directly affect this person's daily life based on where they live, how they get around, whether they have kids, etc.
+
+ITEMS:
+{items_list}
+
+THIS PERSON'S PROFILE:
+Ward: {ward}
+Housing: {housing}
+Transport: {transport}
+Has kids: {has_kids}
+Income: {income}
+Interests: {interests}
+
+JERSEY CITY WARD MAP:
+- Ward A (Greenville): south of Communipaw Ave, east of MLK Dr
+- Ward B (West Side): west of Kennedy Blvd, south of Manhattan Ave, including West Side Ave
+- Ward C (Journal Square): Journal Square, Bergen Ave, JFK Blvd area
+- Ward D (The Heights): north of Manhattan Ave, including Central Ave, Summit Ave, Palisade Ave, Van Wagenen Ave
+- Ward E (Historic Downtown): Exchange Place, Grove St, Hamilton Park, waterfront east of JFK Blvd
+- Ward F (Bergen-Lafayette): Bergen Ave south of Communipaw, Lafayette neighborhood
+
+Pick ONLY the items that genuinely matter to this person — street closures near them, events in their neighborhood, permits that affect their commute, etc. Skip anything routine or irrelevant.
+
+Return a JSON array (could be empty). Each element:
+{
+  "index": <0-based index from the list above>,
+  "plain_title": "short plain-English title",
+  "personal_impact": "1 casual sentence with an emoji about how this hits THEIR life specifically",
+  "impact_category": "<housing|money|transit|schools|safety|environment|development|jobs|government>",
+  "location": "street address or intersection if mentioned, null otherwise"
+}
+
+Only return the JSON array. No other text.`;
+
+/**
+ * Bulk-filter non-ordinance items for a specific subscriber in a single Claude call.
+ * Returns only the items relevant to this person, with a lightweight summary.
+ *
+ * @param {Array} items - array of { ordinance_num, title, full_text, doc_type, ... }
+ * @param {Object} profile - subscriber profile
+ * @returns {Array} relevant items with { index, plain_title, personal_impact, impact_category, location }
+ */
+async function bulkFilterItems(items, profile, maxRetries = 3) {
+  if (items.length === 0) return [];
+
+  // Build a numbered list — use full_text if available, otherwise just the title
+  const itemsList = items.map((item, i) => {
+    const text = item.full_text
+      ? `${item.title}\n${item.full_text.slice(0, 2000)}`
+      : item.title;
+    return `[${i}] ${text}`;
+  }).join('\n\n');
+
+  const prompt = BULK_FILTER_PROMPT
+    .replace('{items_list}', itemsList)
+    .replace('{ward}', profile.ward || 'Unknown')
+    .replace('{housing}', profile.housing || 'Unknown')
+    .replace('{transport}', profile.transport || 'Unknown')
+    .replace('{has_kids}', String(profile.has_kids || false))
+    .replace('{income}', profile.income || 'Not specified')
+    .replace('{interests}', Array.isArray(profile.interests) ? profile.interests.join(', ') : String(profile.interests || ''));
+
+  let lastError;
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      const message = await client.messages.create({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 2048,
+        messages: [
+          { role: 'user', content: prompt }
+        ]
+      });
+
+      const responseText = message.content[0].text.trim();
+      let jsonStr = responseText;
+      const fenceMatch = responseText.match(/```(?:json)?\s*([\s\S]*?)```/);
+      if (fenceMatch) {
+        jsonStr = fenceMatch[1].trim();
+      }
+
+      const results = JSON.parse(jsonStr);
+      if (!Array.isArray(results)) {
+        throw new Error('Expected JSON array from bulk filter');
+      }
+
+      return results;
+    } catch (err) {
+      lastError = err;
+      const status = err?.status || err?.statusCode;
+      if (status === 429 || (status >= 500 && status < 600)) {
+        const waitSec = Math.pow(2, attempt + 1) * 5;
+        console.log(`      Rate limited on bulk filter, waiting ${waitSec}s before retry ${attempt + 1}/${maxRetries}...`);
+        await new Promise(r => setTimeout(r, waitSec * 1000));
+        continue;
+      }
+      throw err;
+    }
+  }
+  throw lastError;
+}
+
+module.exports = { analyzeOrdinance, bulkFilterItems, buildPrompt };

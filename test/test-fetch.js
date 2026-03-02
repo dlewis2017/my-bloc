@@ -25,15 +25,18 @@ async function testFetch() {
         structureValid = false;
       }
     }
-    // doc_type must be ordinance or resolution
-    if (!['ordinance', 'resolution'].includes(item.doc_type)) {
+    // doc_type must be a known type
+    const validDocTypes = ['ordinance', 'resolution', 'consent', 'communication', 'exec_order', 'other'];
+    if (!validDocTypes.includes(item.doc_type)) {
       console.error(`FAIL: Invalid doc_type "${item.doc_type}" for item: ${item.ordinance_num}`);
       structureValid = false;
     }
-    // ordinance_num must match expected format (Ord-XX-XXX or Res-XX-XXX)
-    if (!/^(Ord|Res)-\d{2,4}-\d{1,4}$/.test(item.ordinance_num)) {
-      console.error(`FAIL: Invalid ordinance_num format "${item.ordinance_num}"`);
-      structureValid = false;
+    // ordinance_num format: Ord-XX-XXX or Res-XX-XXX for ordinances, date-prefixed for others
+    if (['ordinance', 'resolution'].includes(item.doc_type)) {
+      if (!/^(Ord|Res)-\d{2,4}-\d{1,4}$/.test(item.ordinance_num)) {
+        console.error(`FAIL: Invalid ordinance_num format "${item.ordinance_num}"`);
+        structureValid = false;
+      }
     }
     // current_state must be valid
     const validStates = ['INTRODUCED', 'AMENDED', 'COMMITTEE', 'VOTED', 'PASSED', 'FAILED', 'WITHDRAWN'];

@@ -119,15 +119,48 @@ function buildItemHtml(item, userId, ward) {
 }
 
 /**
+ * Build a lightweight notice block for community notices (consent agenda, communications, etc.).
+ * Simpler than ordinance items — just title + one-line impact, no vote buttons or relevance dots.
+ */
+function buildNoticeHtml(notice) {
+  const impactIcons = {
+    housing: '\u{1F3E0}', money: '\u{1F4B0}', transit: '\u{1F68C}', schools: '\u{1F393}',
+    safety: '\u{1F6E1}\uFE0F', environment: '\u{1F333}', development: '\u{1F3D7}\uFE0F',
+    jobs: '\u{1F4BC}', government: '\u{1F3DB}\uFE0F'
+  };
+
+  const category = notice.impact_category || 'government';
+  const icon = impactIcons[category] || '\u{1F3DB}\uFE0F';
+
+  return `
+    <div style="padding:10px 0;border-bottom:1px solid #f3f4f6;">
+      <p style="margin:0 0 4px;font-size:14px;font-weight:600;color:#374151;">${icon} ${notice.plain_title}</p>
+      <p style="margin:0;font-size:13px;color:#6b7280;">${notice.personal_impact}</p>
+      ${notice.location ? `<p style="margin:4px 0 0;"><a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(notice.location + ', Jersey City, NJ')}" style="font-size:12px;color:#2563eb;text-decoration:none;">&#x1F4CD; ${notice.location}</a></p>` : ''}
+    </div>`;
+}
+
+/**
  * Build the full digest email HTML for a subscriber.
  *
  * @param {Object} profile - { id, email, ward }
- * @param {Array} items - analyzed items with plain_title, what_is_happening, personal_impact, etc.
+ * @param {Array} items - analyzed ordinance items with plain_title, what_is_happening, personal_impact, etc.
  * @param {string} weekDate - formatted week date string
+ * @param {Array} [notices] - community notice items from bulk filter (lighter format)
  * @returns {string} HTML email content
  */
-function buildDigestHtml(profile, items, weekDate) {
+function buildDigestHtml(profile, items, weekDate, notices = []) {
   const itemsHtml = items.map(item => buildItemHtml(item, profile.id, profile.ward)).join('\n');
+
+  const noticesHtml = notices.length > 0
+    ? `
+    <div style="margin-top:24px;">
+      <h2 style="font-size:18px;color:#111827;margin:0 0 12px;padding-bottom:8px;border-bottom:2px solid #e5e7eb;">Community Notices</h2>
+      <div style="background:#ffffff;border:1px solid #e5e7eb;border-radius:8px;padding:12px 16px;">
+        ${notices.map(n => buildNoticeHtml(n)).join('\n')}
+      </div>
+    </div>`
+    : '';
 
   return `
 <!DOCTYPE html>
@@ -137,10 +170,11 @@ function buildDigestHtml(profile, items, weekDate) {
   <div style="max-width:600px;margin:0 auto;padding:20px;">
     <div style="text-align:center;padding:24px 0;">
       <h1 style="margin:0;font-size:24px;color:#111827;">Your MyBloc Digest</h1>
-      <p style="margin:4px 0 0;font-size:14px;color:#6b7280;">Week of ${weekDate} &middot; Ward ${profile.ward || '?'}</p>
+      <p style="margin:4px 0 0;font-size:14px;color:#6b7280;">${profile.city || 'Jersey City'} &middot; Week of ${weekDate} &middot; Ward ${profile.ward || '?'}</p>
     </div>
 
     ${itemsHtml}
+    ${noticesHtml}
 
     <div style="text-align:center;padding:24px 0;border-top:1px solid #e5e7eb;margin-top:24px;">
       <p style="font-size:12px;color:#9ca3af;margin:0;">
@@ -167,12 +201,13 @@ function generateSubjectLine(items) {
  * Send a digest email to a single subscriber.
  *
  * @param {Object} profile - { id, email, ward }
- * @param {Array} items - analyzed items sorted by relevance_score desc
+ * @param {Array} items - analyzed ordinance items sorted by relevance_score desc
  * @param {string} weekDate - formatted week date string
+ * @param {Array} [notices] - community notice items from bulk filter
  * @returns {Object} Resend API response
  */
-async function sendDigest(profile, items, weekDate) {
-  const html = buildDigestHtml(profile, items, weekDate);
+async function sendDigest(profile, items, weekDate, notices = []) {
+  const html = buildDigestHtml(profile, items, weekDate, notices);
   const subject = generateSubjectLine(items);
 
   const { data, error } = await resend.emails.send({
@@ -241,4 +276,4 @@ function buildWelcomeHtml(profile, items, weekDate) {
 </html>`;
 }
 
-module.exports = { sendDigest, buildDigestHtml, buildItemHtml, buildWelcomeHtml, generateSubjectLine, COUNCIL_REPS };
+module.exports = { sendDigest, buildDigestHtml, buildItemHtml, buildNoticeHtml, buildWelcomeHtml, generateSubjectLine, COUNCIL_REPS };

@@ -33,8 +33,8 @@
 </head>
 <body>
   <div class="card">
-    <h1>Thanks!</h1>
-    <p class="subtitle">Your vote has been recorded.</p>
+    <h1 id="heading">Thanks!</h1>
+    <p class="subtitle" id="subtitle">Your vote has been recorded.</p>
 
     <div id="email-section">
       <div class="divider"></div>
@@ -73,6 +73,13 @@
     };
 
     const params = new URLSearchParams(window.location.search);
+    const reason = params.get('reason');
+
+    if (reason === 'unsubscribed') {
+      document.getElementById('heading').textContent = 'You\'ve been unsubscribed';
+      document.getElementById('subtitle').textContent = 'You won\'t receive any more digest emails. If this was a mistake, you can re-subscribe anytime.';
+    }
+
     const vote = params.get('vote');
     const ward = params.get('ward');
     const title = params.get('title');
