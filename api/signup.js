@@ -99,6 +99,57 @@ module.exports = async function handler(req, res) {
 
     if (error) {
       if (error.code === '23505') {
+        // Check if the existing profile is inactive — if so, re-activate it
+        const { data: existing } = await supabase
+          .from('profiles')
+          .select('id, active')
+          .eq('email', email.toLowerCase().trim())
+          .single();
+
+        if (existing && !existing.active) {
+          const { data: updated, error: updateErr } = await supabase
+            .from('profiles')
+            .update({
+              ward, housing, transport,
+              income: income && VALID_INCOME.includes(income) ? income : null,
+              has_kids: Boolean(has_kids),
+              interests: validatedInterests,
+              active: true
+            })
+            .eq('id', existing.id)
+            .select('id')
+            .single();
+
+          if (updateErr) {
+            console.error('Re-subscribe error:', updateErr);
+            return res.status(500).json({ error: 'Failed to re-subscribe.' });
+          }
+
+          // Send welcome email for re-subscriber (same as new signup)
+          try {
+            const { data: highlight } = await supabase
+              .from('ward_highlights')
+              .select('items, week_date')
+              .eq('ward', ward)
+              .single();
+
+            if (highlight && highlight.items && highlight.items.length > 0) {
+              const profile = { id: updated.id, email: email.toLowerCase().trim(), ward };
+              const html = buildWelcomeHtml(profile, highlight.items, highlight.week_date);
+              await resend.emails.send({
+                from: 'MyBloc <digest@mybloc.co>',
+                to: [profile.email],
+                subject: `Welcome back to MyBloc — here's what's happening in Ward ${ward}`,
+                html
+              });
+            }
+          } catch (welcomeErr) {
+            console.error('Welcome email failed (re-subscribe still succeeded):', welcomeErr.message);
+          }
+
+          return res.status(200).json({ success: true, id: updated.id });
+        }
+
         return res.status(409).json({ error: 'This email is already subscribed.' });
       }
       console.error('Signup error:', error);
