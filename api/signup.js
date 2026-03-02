@@ -125,7 +125,7 @@ module.exports = async function handler(req, res) {
             return res.status(500).json({ error: 'Failed to re-subscribe.' });
           }
 
-          // Send welcome email for re-subscriber (same as new signup)
+          // Send welcome email for re-subscriber
           try {
             const { data: highlight } = await supabase
               .from('ward_highlights')
@@ -133,16 +133,15 @@ module.exports = async function handler(req, res) {
               .eq('ward', ward)
               .single();
 
-            if (highlight && highlight.items && highlight.items.length > 0) {
-              const profile = { id: updated.id, email: email.toLowerCase().trim(), ward };
-              const html = buildWelcomeHtml(profile, highlight.items, highlight.week_date);
-              await resend.emails.send({
-                from: 'MyBloc <digest@mybloc.co>',
-                to: [profile.email],
-                subject: `Welcome back to MyBloc — here's what's happening in Ward ${ward}`,
-                html
-              });
-            }
+            const profile = { id: updated.id, email: email.toLowerCase().trim(), ward };
+            const items = highlight?.items || [];
+            const html = buildWelcomeHtml(profile, items, highlight?.week_date);
+            await resend.emails.send({
+              from: 'MyBloc <digest@mybloc.co>',
+              to: [profile.email],
+              subject: `Welcome back to MyBloc — here's what's happening in Ward ${ward}`,
+              html
+            });
           } catch (welcomeErr) {
             console.error('Welcome email failed (re-subscribe still succeeded):', welcomeErr.message);
           }
@@ -156,7 +155,7 @@ module.exports = async function handler(req, res) {
       return res.status(500).json({ error: 'Failed to create subscription.' });
     }
 
-    // Send welcome email with cached ward highlights (best-effort)
+    // Send welcome email (with highlights if available, without if not)
     try {
       const { data: highlight } = await supabase
         .from('ward_highlights')
@@ -164,16 +163,15 @@ module.exports = async function handler(req, res) {
         .eq('ward', ward)
         .single();
 
-      if (highlight && highlight.items && highlight.items.length > 0) {
-        const profile = { id: data.id, email: email.toLowerCase().trim(), ward };
-        const html = buildWelcomeHtml(profile, highlight.items, highlight.week_date);
-        await resend.emails.send({
-          from: 'MyBloc <digest@mybloc.co>',
-          to: [profile.email],
-          subject: `Welcome to MyBloc — here's what's happening in Ward ${ward}`,
-          html
-        });
-      }
+      const profile = { id: data.id, email: email.toLowerCase().trim(), ward };
+      const items = highlight?.items || [];
+      const html = buildWelcomeHtml(profile, items, highlight?.week_date);
+      await resend.emails.send({
+        from: 'MyBloc <digest@mybloc.co>',
+        to: [profile.email],
+        subject: `Welcome to MyBloc — here's what's happening in Ward ${ward}`,
+        html
+      });
     } catch (welcomeErr) {
       console.error('Welcome email failed (signup still succeeded):', welcomeErr.message);
     }

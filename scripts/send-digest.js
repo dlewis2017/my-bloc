@@ -234,7 +234,8 @@ async function sendDigest(profile, items, weekDate, notices = []) {
  */
 function buildWelcomeHtml(profile, items, weekDate) {
   const rep = COUNCIL_REPS[profile.ward];
-  const itemsHtml = items.map(item => buildItemHtml(item, profile.id, profile.ward)).join('\n');
+  const hasItems = Array.isArray(items) && items.length > 0;
+  const itemsHtml = hasItems ? items.map(item => buildItemHtml(item, profile.id, profile.ward)).join('\n') : '';
 
   const repHtml = rep ? `
     <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:16px;margin-bottom:20px;">
@@ -242,6 +243,11 @@ function buildWelcomeHtml(profile, items, weekDate) {
       <p style="margin:0 0 6px;font-size:13px;color:#1e40af;">Email: <a href="mailto:${rep.email}" style="color:#2563eb;">${rep.email}</a></p>
       <p style="margin:0;font-size:13px;color:#374151;">Your personalized digest arrives every Thursday.</p>
     </div>` : '';
+
+  const previewHtml = hasItems ? `
+    <p style="font-size:14px;color:#4b5563;margin-bottom:16px;">Here are a few items from the latest council agenda that may affect you:</p>
+    ${itemsHtml}` : `
+    <p style="font-size:14px;color:#4b5563;margin-bottom:16px;">Your first personalized digest will arrive this Thursday with the latest from the Jersey City Council — tailored to your ward and interests.</p>`;
 
   return `
 <!DOCTYPE html>
@@ -251,14 +257,12 @@ function buildWelcomeHtml(profile, items, weekDate) {
   <div style="max-width:600px;margin:0 auto;padding:20px;">
     <div style="text-align:center;padding:24px 0;">
       <h1 style="margin:0;font-size:24px;color:#111827;">Welcome to MyBloc</h1>
-      <p style="margin:4px 0 0;font-size:14px;color:#6b7280;">Here's a preview of what's happening in Ward ${profile.ward || '?'}</p>
+      <p style="margin:4px 0 0;font-size:14px;color:#6b7280;">Your personalized civic digest for Ward ${profile.ward || '?'}</p>
     </div>
 
     ${repHtml}
 
-    <p style="font-size:14px;color:#4b5563;margin-bottom:16px;">Here are a few items from the latest council agenda that may affect you:</p>
-
-    ${itemsHtml}
+    ${previewHtml}
 
     <div style="text-align:center;margin:24px 0;">
       <a href="${VOTE_BASE_URL}/manage.html?user=${profile.id}" style="display:inline-block;padding:12px 28px;background:#2563eb;color:#fff;border-radius:8px;text-decoration:none;font-size:14px;font-weight:600;">Update your profile</a>

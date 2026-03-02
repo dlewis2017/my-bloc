@@ -50,11 +50,8 @@ module.exports = async function handler(req, res) {
       .eq('ward', profile.ward)
       .single();
 
-    if (!highlight || !highlight.items || !highlight.items.length) {
-      return res.status(404).json({ error: 'No cached highlights for this ward yet. Run the digest pipeline first.' });
-    }
-
-    const html = buildWelcomeHtml(profile, highlight.items, highlight.week_date);
+    const items = highlight?.items || [];
+    const html = buildWelcomeHtml(profile, items, highlight?.week_date);
     const { data: emailResult, error: emailErr } = await resend.emails.send({
       from: 'MyBloc <digest@mybloc.co>',
       to: [profile.email],
