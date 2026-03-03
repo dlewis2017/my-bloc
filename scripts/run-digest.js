@@ -2,13 +2,18 @@
 require('dotenv').config();
 const { createClient } = require('@supabase/supabase-js');
 const { fetchCivicWeb } = require('./fetch-civicweb');
+const { fetchPlanningBoard } = require('./fetch-planning-board');
 const { upsertOrdinance, getUnnotifiedOrdinances, markNotified, getVoteTotals } = require('./state-tracker');
 const { analyzeOrdinance, bulkFilterItems } = require('./claude-analyzer');
 const { sendDigest, generateSubjectLine } = require('./send-digest');
 
 const MIN_RELEVANCE_SCORE = 5;
-const MAX_ITEMS_PER_DIGEST = 10;
+const MAX_ITEMS_PER_DIGEST = 5;
+const MAX_DEV_PER_DIGEST = 5;
 const MAX_NOTICES_PER_DIGEST = 5;
+
+// Doc types that go in the "Development & Zoning" section
+const DEVELOPMENT_TYPES = new Set(['planning']);
 const MAX_MEETINGS = 2;
 const CONCURRENCY = 2; // parallel Claude API calls (kept low for 30k tokens/min rate limit)
 
@@ -24,6 +29,7 @@ const DEEP_ANALYSIS_TYPES = new Set(['ordinance', 'resolution']);
 async function runDigest(deps = {}) {
   const db = deps.supabase || createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
   const fetch = deps.fetchCivicWeb || fetchCivicWeb;
+  const fetchPB = deps.fetchPlanningBoard || fetchPlanningBoard;
   const upsert = deps.upsertOrdinance || upsertOrdinance;
   const getUnnotified = deps.getUnnotifiedOrdinances || getUnnotifiedOrdinances;
   const getVotes = deps.getVoteTotals || getVoteTotals;
@@ -33,10 +39,22 @@ async function runDigest(deps = {}) {
 
   console.log('=== MyBloc Digest Pipeline ===\n');
 
-  // Step 1: Fetch latest ordinances/resolutions from CivicWeb
-  console.log('Step 1: Fetching from CivicWeb...');
-  const items = await fetch(MAX_MEETINGS);
-  console.log(`  Fetched ${items.length} items\n`);
+  // Step 1: Fetch from all sources
+  console.log('Step 1a: Fetching from CivicWeb...');
+  const civicItems = await fetch(MAX_MEETINGS);
+  console.log(`  Fetched ${civicItems.length} CivicWeb items`);
+
+  console.log('Step 1b: Fetching from Planning/Zoning Boards...');
+  let pbItems = [];
+  try {
+    pbItems = await fetchPB();
+    console.log(`  Fetched ${pbItems.length} Planning/Zoning items`);
+  } catch (err) {
+    console.warn(`  Planning Board fetch failed (non-fatal): ${err.message}`);
+  }
+
+  const items = [...civicItems, ...pbItems];
+  console.log(`  Total: ${items.length} items\n`);
 
   if (!items.length) {
     console.log('No items found. Exiting.');
@@ -149,10 +167,10 @@ async function runDigest(deps = {}) {
       }
     }
 
-    // Tier 1: Bulk filter for community notices (1 call total)
+    // Tier 1: Bulk filter for community notices + development items (1 call total)
     let relevantNotices = [];
     if (noticeItems.length > 0) {
-      console.log(`    Bulk filtering: ${noticeItems.length} community notices...`);
+      console.log(`    Bulk filtering: ${noticeItems.length} community notices + development items...`);
       try {
         const filtered = await bulkFilter(noticeItems, profile);
         relevantNotices = filtered.map(f => ({
@@ -161,32 +179,40 @@ async function runDigest(deps = {}) {
           doc_type: noticeItems[f.index]?.doc_type || 'notice',
           source_url: noticeItems[f.index]?.source_url || null,
           meeting_url: noticeItems[f.index]?.meeting_url || null,
+          // Carry forward structured fields from planning items
+          ward: noticeItems[f.index]?.ward || null,
+          current_state: noticeItems[f.index]?.current_state || null,
           is_notice: true
         }));
-        console.log(`    ${relevantNotices.length} notices relevant to this person`);
+        console.log(`    ${relevantNotices.length} items relevant to this person`);
       } catch (err) {
         console.warn(`    Bulk filter failed: ${err.message}`);
       }
     }
 
-    // Sort ordinances by total votes then relevance score
+    // Split bulk filter results: development/zoning vs community notices
+    const devNotices = relevantNotices.filter(n => DEVELOPMENT_TYPES.has(n.doc_type));
+    const communityNotices = relevantNotices.filter(n => !DEVELOPMENT_TYPES.has(n.doc_type));
+
+    // Sort ordinances by relevance score first, then total votes as tiebreaker
     relevantItems.sort((a, b) => {
+      if (b.relevance_score !== a.relevance_score) return b.relevance_score - a.relevance_score;
       const aVotes = (a.vote_totals ? a.vote_totals.up + a.vote_totals.down : 0);
       const bVotes = (b.vote_totals ? b.vote_totals.up + b.vote_totals.down : 0);
-      if (bVotes !== aVotes) return bVotes - aVotes;
-      return b.relevance_score - a.relevance_score;
+      return bVotes - aVotes;
     });
 
-    // Cap each tier separately
+    // Cap each section separately
     const cappedItems = relevantItems.slice(0, MAX_ITEMS_PER_DIGEST);
-    const cappedNotices = relevantNotices.slice(0, MAX_NOTICES_PER_DIGEST);
+    const cappedDev = devNotices.slice(0, MAX_DEV_PER_DIGEST);
+    const cappedNotices = communityNotices.slice(0, MAX_NOTICES_PER_DIGEST);
 
-    if (!cappedItems.length && !cappedNotices.length) {
+    if (!cappedItems.length && !cappedDev.length && !cappedNotices.length) {
       console.log(`  No relevant items for ${profile.email}, skipping email.`);
       continue;
     }
 
-    console.log(`  ${cappedItems.length} ordinances + ${cappedNotices.length} notices for digest`);
+    console.log(`  ${cappedItems.length} ordinances + ${cappedDev.length} development + ${cappedNotices.length} notices for digest`);
 
     // Cache top 3 ordinance items for welcome emails (first subscriber per ward wins)
     if (profile.ward && !cachedWards.has(profile.ward) && cappedItems.length > 0) {
@@ -208,7 +234,7 @@ async function runDigest(deps = {}) {
     // Step 7: Send personalized digest email
     console.log(`  Sending digest to ${profile.email}...`);
     try {
-      const result = await send(profile, cappedItems, weekDate, cappedNotices);
+      const result = await send(profile, cappedItems, weekDate, cappedDev, cappedNotices);
       console.log(`  Sent! ID: ${result.id}`);
       emailsSent++;
     } catch (err) {

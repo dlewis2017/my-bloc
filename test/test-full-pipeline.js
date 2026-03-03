@@ -56,9 +56,9 @@ if (includeAll) {
 
 // Override sendDigest to redirect all emails to test address
 const { sendDigest } = require('../scripts/send-digest');
-deps.sendDigest = async (profile, items, weekDate, notices) => {
+deps.sendDigest = async (profile, items, weekDate, devNotices, notices) => {
   const testProfile = { ...profile, email: testEmail };
-  return sendDigest(testProfile, items, weekDate, notices);
+  return sendDigest(testProfile, items, weekDate, devNotices, notices);
 };
 
 // Fetch only the test profile

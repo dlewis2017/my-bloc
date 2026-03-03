@@ -125,7 +125,11 @@ async function analyzeOrdinance(ordinanceText, profile, maxRetries = 3) {
 
 const BULK_FILTER_PROMPT = `You are a sharp, straight-talking neighbor who knows everything about Jersey City government. You explain local politics the way you'd text a friend — casual, concrete, and real.
 
-Below is a list of consent agenda / community notice items from this week's city council meeting. Most are routine — but some will directly affect this person's daily life based on where they live, how they get around, whether they have kids, etc.
+Below is a list of items from two sources:
+- **Development/Zoning items** (marked [DEV]): Planning Board and Zoning Board cases — new construction, site plans, zoning appeals, etc.
+- **Community notices** (marked [NOTICE]): Council agenda items — environmental letters, permits, communications, personnel, etc.
+
+Most are routine — but some will directly affect this person's daily life based on where they live, how they get around, whether they have kids, etc.
 
 ITEMS:
 {items_list}
@@ -146,7 +150,11 @@ JERSEY CITY WARD MAP:
 - Ward E (Historic Downtown): Exchange Place, Grove St, Hamilton Park, waterfront east of JFK Blvd
 - Ward F (Bergen-Lafayette): Bergen Ave south of Communipaw, Lafayette neighborhood
 
-Pick ONLY the items that genuinely matter to this person — street closures near them, events in their neighborhood, permits that affect their commute, etc. Skip anything routine or irrelevant.
+Some items include structured fields like Address, Ward, and Zone — use these for precise location matching. A development 2 blocks from someone's home matters a lot; one across the city probably doesn't.
+
+Pick ONLY the items that genuinely matter to this person — new construction near them, zoning changes in their neighborhood, street closures near them, events in their area, permits that affect their commute, etc. Skip anything routine or irrelevant.
+
+IMPORTANT: Ensure coverage of BOTH categories. Return at least 2 [DEV] items AND at least 2 [NOTICE] items if there are relevant ones in each category. Don't let one category crowd out the other.
 
 Return a JSON array (could be empty). Each element:
 {
@@ -170,12 +178,13 @@ Only return the JSON array. No other text.`;
 async function bulkFilterItems(items, profile, maxRetries = 3) {
   if (items.length === 0) return [];
 
-  // Build a numbered list — use full_text if available, otherwise just the title
+  // Build a numbered list — tag each item with its category and include full_text if available
   const itemsList = items.map((item, i) => {
+    const tag = item.doc_type === 'planning' ? '[DEV]' : '[NOTICE]';
     const text = item.full_text
       ? `${item.title}\n${item.full_text.slice(0, 2000)}`
       : item.title;
-    return `[${i}] ${text}`;
+    return `[${i}] ${tag} ${text}`;
   }).join('\n\n');
 
   const prompt = BULK_FILTER_PROMPT

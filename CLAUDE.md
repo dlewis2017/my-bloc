@@ -7,10 +7,11 @@ Two subscribers receive completely different emails for the same agenda — a re
 ## Architecture
 
 ```
-CivicWeb (Playwright) → PDF Extract → State Tracker → Claude Analysis → Personalized Email
-                                            ↓
-                                       Supabase DB
-                                     (ordinances + profiles + votes)
+CivicWeb (Playwright) → PDF Extract ─┐
+Planning/Zoning Board (API + PDF) ──┤→ State Tracker → Claude Analysis → Personalized Email
+                                     ↓
+                                Supabase DB
+                              (ordinances + profiles + votes)
 ```
 
 - **Orchestration:** `node scripts/run-digest.js` (single script, no n8n)
@@ -30,7 +31,8 @@ civicpulse/
 ├── package.json
 ├── .env                         ← secrets (never commit)
 ├── scripts/
-│   ├── fetch-civicweb.js        ← Playwright scraper + PDF text extraction
+│   ├── fetch-civicweb.js        ← Playwright scraper + PDF text extraction (City Council)
+│   ├── fetch-planning-board.js  ← Planning Board + Zoning Board fetcher (JC Open Data API)
 │   ├── state-tracker.js         ← ordinance upsert + state machine + vote aggregation
 │   ├── claude-analyzer.js       ← Claude API call with personalization prompt
 │   ├── send-digest.js           ← Resend email builder + sender
@@ -51,6 +53,9 @@ civicpulse/
 │   └── profiles.sql             ← test subscriber inserts
 └── test/
     ├── test-fetch.js
+    ├── test-fetch-folders.js
+    ├── test-fetch-planning-board.js
+    ├── test-full-pipeline.js
     ├── test-state-tracker.js
     ├── test-claude-prompt.js
     └── test-email.js
@@ -70,8 +75,10 @@ node test/test-full-pipeline.js                    # new items only (production-
 # Test individual components
 node scripts/fetch-civicweb.js   # scrape + extract PDFs, print results
 node test/test-fetch.js          # verify fetch returns valid items
-node test/test-fetch-folders.js  # verify multi-source scraper (folders + agenda PDF)
-node test/test-state-tracker.js  # verify upsert state machine
+node test/test-fetch-folders.js           # verify multi-source scraper (folders + agenda PDF)
+node scripts/fetch-planning-board.js     # fetch Planning/Zoning Board cases, print results
+node test/test-fetch-planning-board.js   # verify Planning Board fetcher end-to-end
+node test/test-state-tracker.js          # verify upsert state machine
 node test/test-claude-prompt.js  # verify Claude returns valid JSON
 node test/test-email.js          # send test digest email
 
@@ -122,6 +129,20 @@ await parser.load();
 const result = await parser.getText();  // returns { pages, text, total }
 await parser.destroy();
 ```
+
+## Planning Board / Zoning Board Data Source
+
+Fetched from the **JC Open Data portal** (Opendatasoft API, no auth required).
+
+- **Planning Board API:** `https://data.jerseycitynj.gov/api/explore/v2.1/catalog/datasets/planning-board-agendas-2026/attachments`
+- **Zoning Board API:** `https://data.jerseycitynj.gov/api/explore/v2.1/catalog/datasets/zb-agendas-2026/attachments`
+- Returns JSON list of PDF attachments with `metas.url` for direct download
+- PDFs contain structured case listings with: Case No, For, Address, Ward, Block/Lot, Zone, Applicant, Attorney, Description, Status
+- Case numbers: `P` prefix for Planning Board, `Z` prefix for Zoning Board
+- Items flow through pipeline as `doc_type: 'planning'` → routed to bulk filter (tier 1), rendered as Community Notices in email
+- **Note:** Dataset IDs are year-specific (`planning-board-agendas-2026`). Will need updating each January.
+- **Note:** Some agendas reuse the same case number for different items (typos in source data). Deduplication uses case number + address.
+- **Note:** Adjournment entries often lack Ward/Zone/Description fields. The full case entry (in OLD/NEW BUSINESS sections) has these details. Merge logic fills in missing fields from later entries.
 
 ## Database Schema
 
