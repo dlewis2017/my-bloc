@@ -6,28 +6,28 @@
   <title>MyBloc</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f7fa; display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; }
-    .card { background: #fff; border-radius: 12px; padding: 40px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1); max-width: 520px; width: 100%; }
-    h1 { font-size: 24px; color: #1a1a2e; margin-bottom: 8px; }
-    .subtitle { color: #3d4f6f; font-size: 15px; line-height: 1.5; margin-bottom: 16px; }
-    .divider { border-top: 1px solid #dce3ed; margin: 20px 0; }
-    .prompt { color: #1e3a5f; font-size: 15px; font-weight: 600; margin-bottom: 12px; }
-    .draft-box { background: #f5f7fa; border: 1px solid #dce3ed; border-radius: 8px; padding: 16px; text-align: left; margin-bottom: 16px; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f1b2d; display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; }
+    .card { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 20px; padding: 40px; text-align: center; box-shadow: 0 4px 32px rgba(0,0,0,0.3); max-width: 520px; width: 100%; }
+    h1 { font-size: 24px; color: #ffffff; margin-bottom: 8px; }
+    .subtitle { color: rgba(255,255,255,0.6); font-size: 15px; line-height: 1.5; margin-bottom: 16px; }
+    .divider { border-top: 1px solid rgba(255,255,255,0.08); margin: 20px 0; }
+    .prompt { color: #d4a843; font-size: 15px; font-weight: 600; margin-bottom: 12px; }
+    .draft-box { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 14px; padding: 16px; text-align: left; margin-bottom: 16px; }
     .draft-field { margin-bottom: 8px; font-size: 13px; }
-    .draft-label { color: #3d4f6f; font-weight: 600; }
-    .draft-value { color: #1a1a2e; }
-    .draft-body { white-space: pre-wrap; color: #3d4f6f; font-size: 14px; line-height: 1.6; border-top: 1px solid #dce3ed; padding-top: 12px; margin-top: 8px; }
+    .draft-label { color: rgba(255,255,255,0.4); font-weight: 600; }
+    .draft-value { color: #f1f5f9; }
+    .draft-body { white-space: pre-wrap; color: rgba(255,255,255,0.6); font-size: 14px; line-height: 1.6; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 12px; margin-top: 8px; }
     .actions { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
-    .btn { display: inline-block; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 600; cursor: pointer; border: none; }
-    .btn-copy { background: #f5f3ff; color: #5b21b6; border: 1px solid #ddd6fe; }
-    .btn-copy:hover { background: #ede9fe; }
-    .btn-gmail { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
-    .btn-gmail:hover { background: #fee2e2; }
-    .btn-outlook { background: #f0f4f8; color: #1e3a5f; border: 1px solid #c8d6e5; }
-    .btn-outlook:hover { background: #e1e8f0; }
-    .btn-yahoo { background: #f5f3ff; color: #7c3aed; border: 1px solid #ddd6fe; }
-    .btn-yahoo:hover { background: #ede9fe; }
-    .copied { color: #059669; font-size: 13px; margin-top: 8px; display: none; }
+    .btn { display: inline-block; padding: 10px 20px; border-radius: 12px; text-decoration: none; font-size: 14px; font-weight: 600; cursor: pointer; border: none; transition: all 0.25s; }
+    .btn-copy { background: rgba(212,168,67,0.12); color: #d4a843; border: 1px solid rgba(212,168,67,0.25); }
+    .btn-copy:hover { background: rgba(212,168,67,0.2); }
+    .btn-gmail { background: rgba(239,68,68,0.08); color: #fca5a5; border: 1px solid rgba(239,68,68,0.2); }
+    .btn-gmail:hover { background: rgba(239,68,68,0.15); }
+    .btn-outlook { background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.7); border: 1px solid rgba(255,255,255,0.12); }
+    .btn-outlook:hover { background: rgba(255,255,255,0.1); }
+    .btn-yahoo { background: rgba(139,92,246,0.08); color: #a78bfa; border: 1px solid rgba(139,92,246,0.2); }
+    .btn-yahoo:hover { background: rgba(139,92,246,0.15); }
+    .copied { color: #4ade80; font-size: 13px; margin-top: 8px; display: none; }
     #email-section { display: none; }
   </style>
 </head>
