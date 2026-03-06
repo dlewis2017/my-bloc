@@ -150,7 +150,7 @@ Four tables: `ordinances`, `profiles`, `votes`, `ward_highlights`. See `supabase
 
 - Supabase RLS is enabled but no policies defined — API routes use service key to bypass
 - `votes` table has FK constraints on both `user_id` (→ `profiles.id`) and `ordinance_id` (→ `ordinances.id`)
-- `ward_highlights` caches top 3 analyzed items per ward for instant welcome emails (no Claude call at signup time)
+- `ward_highlights` table exists but is no longer used — welcome emails now run live Claude analysis at signup time (~2 API calls, ~5s)
 
 ## State Machine
 
@@ -167,8 +167,7 @@ The state tracker is idempotent — running twice on the same data produces the 
 - **Vercel CLI** must be linked to the correct project (`vercel link --project civicpulse`) before deploying — otherwise it creates a new project that won't serve `mybloc.co`
 - **Email footer** includes both "Manage profile" and "Unsubscribe" links
 - **pdf-parse v2** uses a class-based API (`new PDFParse({ data })` + `.load()` + `.getText()`) not a function call
-- **Welcome email works without `ward_highlights`** — sends a simpler welcome with council rep info and "your first digest arrives Thursday" when no highlights are cached
-- **Pipeline re-runs on already-notified items** won't reach the ward caching step — to re-seed `ward_highlights` manually, reset `notified_at` or write a one-off seed script
+- **Welcome email uses live Claude analysis** — queries recent notified items from `ordinances` table and runs two-tier analysis (~2 Claude calls per signup). Falls back to "your first digest arrives Thursday" if no notified items exist
 - **Supabase remote SQL** — use `psql "$SUPABASE_DB_URL"` for DDL; the Supabase CLI (`v2.75.0`, installed via `brew install supabase/tap/supabase`) does not have a `db execute` command
 
 ## Working Style

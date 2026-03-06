@@ -1,12 +1,9 @@
 const { createClient } = require('@supabase/supabase-js');
-const { Resend } = require('resend');
-const { buildWelcomeHtml } = require('../scripts/send-digest');
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_KEY
 );
-const resend = new Resend(process.env.RESEND_API_KEY);
 
 const VALID_WARDS = ['A', 'B', 'C', 'D', 'E', 'F'];
 const VALID_HOUSING = ['Renter', 'Homeowner', 'Section 8'];
@@ -18,6 +15,7 @@ const VALID_INTERESTS = [
   'development', 'zoning', 'jobs', 'small business', 'affordable housing'
 ];
 const VALID_INCOME = ['Under $50K', '$50K-$100K', '$100K-$200K', 'Over $200K'];
+
 
 module.exports = async function handler(req, res) {
   // CORS headers for frontend fetch
@@ -84,16 +82,18 @@ module.exports = async function handler(req, res) {
     ? interests.filter(i => VALID_INTERESTS.includes(i))
     : [];
 
+  const profileFields = {
+    email: email.toLowerCase().trim(),
+    ward, housing, transport,
+    has_kids: Boolean(has_kids),
+    income: income && VALID_INCOME.includes(income) ? income : null,
+    interests: validatedInterests
+  };
+
   try {
     const { data, error } = await supabase.from('profiles').insert({
-      email: email.toLowerCase().trim(),
+      ...profileFields,
       city: city || 'Jersey City',
-      ward,
-      housing,
-      transport,
-      income: income && VALID_INCOME.includes(income) ? income : null,
-      has_kids: Boolean(has_kids),
-      interests: validatedInterests,
       active: true
     }).select('id').single();
 
@@ -109,13 +109,7 @@ module.exports = async function handler(req, res) {
         if (existing && !existing.active) {
           const { data: updated, error: updateErr } = await supabase
             .from('profiles')
-            .update({
-              ward, housing, transport,
-              income: income && VALID_INCOME.includes(income) ? income : null,
-              has_kids: Boolean(has_kids),
-              interests: validatedInterests,
-              active: true
-            })
+            .update({ ...profileFields, active: true })
             .eq('id', existing.id)
             .select('id')
             .single();
@@ -125,27 +119,6 @@ module.exports = async function handler(req, res) {
             return res.status(500).json({ error: 'Failed to re-subscribe.' });
           }
 
-          // Send welcome email for re-subscriber
-          try {
-            const { data: highlight } = await supabase
-              .from('ward_highlights')
-              .select('items, week_date')
-              .eq('ward', ward)
-              .single();
-
-            const profile = { id: updated.id, email: email.toLowerCase().trim(), ward };
-            const items = highlight?.items || [];
-            const html = buildWelcomeHtml(profile, items, highlight?.week_date);
-            await resend.emails.send({
-              from: 'MyBloc <digest@mybloc.co>',
-              to: [profile.email],
-              subject: `Welcome back to MyBloc — here's what's happening in Ward ${ward}`,
-              html
-            });
-          } catch (welcomeErr) {
-            console.error('Welcome email failed (re-subscribe still succeeded):', welcomeErr.message);
-          }
-
           return res.status(200).json({ success: true, id: updated.id });
         }
 
@@ -153,27 +126,6 @@ module.exports = async function handler(req, res) {
       }
       console.error('Signup error:', error);
       return res.status(500).json({ error: 'Failed to create subscription.' });
-    }
-
-    // Send welcome email (with highlights if available, without if not)
-    try {
-      const { data: highlight } = await supabase
-        .from('ward_highlights')
-        .select('items, week_date')
-        .eq('ward', ward)
-        .single();
-
-      const profile = { id: data.id, email: email.toLowerCase().trim(), ward };
-      const items = highlight?.items || [];
-      const html = buildWelcomeHtml(profile, items, highlight?.week_date);
-      await resend.emails.send({
-        from: 'MyBloc <digest@mybloc.co>',
-        to: [profile.email],
-        subject: `Welcome to MyBloc — here's what's happening in Ward ${ward}`,
-        html
-      });
-    } catch (welcomeErr) {
-      console.error('Welcome email failed (signup still succeeded):', welcomeErr.message);
     }
 
     return res.status(200).json({ success: true, id: data.id });

@@ -1,6 +1,6 @@
 const { createClient } = require('@supabase/supabase-js');
 const { Resend } = require('resend');
-const { buildWelcomeHtml } = require('../scripts/send-digest');
+const { buildWelcomeHtml, buildWelcomeDigest } = require('../scripts/send-digest');
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -28,10 +28,10 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    // Fetch the subscriber profile
+    // Fetch the full subscriber profile (need all fields for Claude analysis)
     const { data: profile, error: profileErr } = await supabase
       .from('profiles')
-      .select('id, email, ward')
+      .select('*')
       .eq('id', userId)
       .single();
 
@@ -43,15 +43,9 @@ module.exports = async function handler(req, res) {
       return res.status(400).json({ error: 'Subscriber has no ward — cannot send welcome email.' });
     }
 
-    // Fetch cached highlights for their ward
-    const { data: highlight } = await supabase
-      .from('ward_highlights')
-      .select('items, week_date')
-      .eq('ward', profile.ward)
-      .single();
-
-    const items = highlight?.items || [];
-    const html = buildWelcomeHtml(profile, items, highlight?.week_date);
+    // Run Claude analysis and send welcome email (awaited so Vercel keeps function alive)
+    const { items, devNotices, notices, weekDate } = await buildWelcomeDigest(profile, supabase);
+    const html = buildWelcomeHtml(profile, items, weekDate, devNotices, notices);
     const { data: emailResult, error: emailErr } = await resend.emails.send({
       from: 'MyBloc <digest@mybloc.co>',
       to: [profile.email],

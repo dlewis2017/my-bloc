@@ -36,6 +36,10 @@
     .msg { margin-top: 16px; padding: 12px; border-radius: 12px; font-size: 14px; text-align: center; }
     .msg.success { background: rgba(34,197,94,0.1); color: #4ade80; border: 1px solid rgba(34,197,94,0.25); }
     .msg.error { background: rgba(239,68,68,0.1); color: #fca5a5; border: 1px solid rgba(239,68,68,0.25); }
+    .msg.progress { background: rgba(212,168,67,0.08); color: #d4a843; border: 1px solid rgba(212,168,67,0.25); }
+    .msg.digest-done { background: rgba(96,165,250,0.1); color: #93c5fd; border: 1px solid rgba(96,165,250,0.25); }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(212,168,67,0.3); border-top-color: #d4a843; border-radius: 50%; animation: spin 0.8s linear infinite; vertical-align: middle; margin-right: 6px; }
   </style>
 </head>
 <body>
@@ -147,6 +151,7 @@
         <button type="submit">Subscribe</button>
       </form>
       <div id="msg" class="msg" style="display:none;"></div>
+      <div id="digest-msg" class="msg" style="display:none;"></div>
     </div>
   </div>
 
@@ -186,6 +191,7 @@
       btn.textContent = 'Subscribing...';
       msg.style.display = 'none';
 
+
       const interests = Array.from(form.querySelectorAll('input[name="interests"]:checked')).map(el => el.value);
       const housing = form.querySelector('input[name="housing"]:checked');
       const transport = form.querySelector('input[name="transport"]:checked');
@@ -205,6 +211,9 @@
         waitlist: isWaitlist
       };
 
+      const digestMsg = document.getElementById('digest-msg');
+      digestMsg.style.display = 'none';
+
       try {
         const res = await fetch('/api/signup', {
           method: 'POST',
@@ -217,11 +226,36 @@
           msg.className = 'msg success';
           msg.textContent = isWaitlist
             ? "You're on the waitlist! We'll email you when MyBloc launches in your city."
-            : "You're subscribed! Check your inbox for a preview of what's happening in your ward.";
+            : "You're subscribed!";
           msg.style.display = 'block';
           form.reset();
           wardSection.style.display = '';
           cityUnavailable.style.display = 'none';
+
+          // Trigger welcome email from the browser (separate serverless call)
+          if (!isWaitlist && data.id) {
+            digestMsg.className = 'msg progress';
+            digestMsg.innerHTML = '<span class="spinner"></span>Preparing your personalized welcome digest...';
+            digestMsg.style.display = 'block';
+
+            try {
+              const welcomeRes = await fetch('/api/welcome', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId: data.id })
+              });
+              if (welcomeRes.ok) {
+                digestMsg.className = 'msg digest-done';
+                digestMsg.textContent = 'Your welcome digest has been sent — check your inbox!';
+              } else {
+                digestMsg.className = 'msg digest-done';
+                digestMsg.textContent = 'Your first personalized digest will arrive Thursday.';
+              }
+            } catch {
+              digestMsg.className = 'msg digest-done';
+              digestMsg.textContent = 'Your first personalized digest will arrive Thursday.';
+            }
+          }
         } else {
           msg.className = 'msg error';
           msg.textContent = data.error || 'Something went wrong.';

@@ -1,5 +1,14 @@
 require('dotenv').config();
 const { Resend } = require('resend');
+const { analyzeOrdinance, bulkFilterItems } = require('./claude-analyzer');
+
+const MIN_RELEVANCE_SCORE = 5;
+const MAX_WELCOME_DEEP_ITEMS = 5;
+const MAX_WELCOME_DEV = 5;
+const MAX_WELCOME_NOTICES = 5;
+const CONCURRENCY = 2;
+const DEEP_ANALYSIS_TYPES = new Set(['ordinance', 'resolution']);
+const DEVELOPMENT_TYPES = new Set(['planning']);
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 const VOTE_BASE_URL = process.env.VOTE_BASE_URL || 'https://your-app.vercel.app';
@@ -273,10 +282,33 @@ async function sendDigest(profile, items, weekDate, devNotices = [], notices = [
  * @param {string} weekDate - formatted week date string from ward_highlights
  * @returns {string} HTML email content
  */
-function buildWelcomeHtml(profile, items, weekDate) {
+function buildWelcomeHtml(profile, items, weekDate, devNotices = [], notices = []) {
   const rep = COUNCIL_REPS[profile.ward];
   const hasItems = Array.isArray(items) && items.length > 0;
-  const itemsHtml = hasItems ? items.map(item => buildItemHtml(item, profile.id, profile.ward)).join('\n') : '';
+  const hasDev = Array.isArray(devNotices) && devNotices.length > 0;
+  const hasNotices = Array.isArray(notices) && notices.length > 0;
+  const hasAnyContent = hasItems || hasDev || hasNotices;
+
+  const itemsHtml = hasItems
+    ? `<h2 style="font-size:18px;color:#0f1b2d;margin:0 0 12px;padding-bottom:8px;border-bottom:2px solid #e2e8f0;">\u{1F3DB}\uFE0F Ordinances &amp; Resolutions</h2>
+      ${items.map(item => buildItemHtml(item, profile.id, profile.ward)).join('\n')}`
+    : '';
+
+  const devHtml = hasDev
+    ? `<div style="margin-top:24px;">
+      <h2 style="font-size:18px;color:#0f1b2d;margin:0 0 12px;padding-bottom:8px;border-bottom:2px solid #e2e8f0;">\u{1F3D7}\uFE0F Development &amp; Zoning</h2>
+      ${devNotices.map(n => buildDevelopmentHtml(n, profile.id, profile.ward)).join('\n')}
+    </div>`
+    : '';
+
+  const noticesHtml = hasNotices
+    ? `<div style="margin-top:24px;">
+      <h2 style="font-size:18px;color:#0f1b2d;margin:0 0 12px;padding-bottom:8px;border-bottom:2px solid #e2e8f0;">Community Notices</h2>
+      <div style="background:#ffffff;border:1px solid #e2e8f0;border-radius:10px;padding:12px 16px;">
+        ${notices.map(n => buildNoticeHtml(n)).join('\n')}
+      </div>
+    </div>`
+    : '';
 
   const repHtml = rep ? `
     <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:16px;margin-bottom:20px;">
@@ -285,9 +317,11 @@ function buildWelcomeHtml(profile, items, weekDate) {
       <p style="margin:0;font-size:13px;color:#64748b;">Your personalized digest arrives every Thursday.</p>
     </div>` : '';
 
-  const previewHtml = hasItems ? `
+  const previewHtml = hasAnyContent ? `
     <p style="font-size:14px;color:#475569;margin-bottom:16px;">Here are a few items from the latest council agenda that may affect you:</p>
-    ${itemsHtml}` : `
+    ${itemsHtml}
+    ${devHtml}
+    ${noticesHtml}` : `
     <p style="font-size:14px;color:#475569;margin-bottom:16px;">Your first personalized digest will arrive this Thursday with the latest from the Jersey City Council — tailored to your ward and interests.</p>`;
 
   return `
@@ -325,4 +359,106 @@ function buildWelcomeHtml(profile, items, weekDate) {
 </html>`;
 }
 
-module.exports = { sendDigest, buildDigestHtml, buildItemHtml, buildDevelopmentHtml, buildNoticeHtml, buildWelcomeHtml, generateSubjectLine, COUNCIL_REPS };
+/**
+ * Query recent notified items and run two-tier Claude analysis for a welcome email.
+ * ~2 Claude API calls, ~5s latency. Used at signup time instead of cached ward_highlights.
+ *
+ * @param {Object} profile - full subscriber profile (ward, housing, transport, etc.)
+ * @param {Object} db - Supabase client
+ * @returns {{ items: Array, devNotices: Array, notices: Array, weekDate: string }}
+ */
+async function buildWelcomeDigest(profile, db) {
+  // Fetch recent items by category separately to avoid one type crowding out others
+  const [deepResult, bulkResult] = await Promise.all([
+    db.from('ordinances').select('*')
+      .not('notified_at', 'is', null)
+      .in('doc_type', ['ordinance', 'resolution'])
+      .order('notified_at', { ascending: false })
+      .limit(20),
+    db.from('ordinances').select('*')
+      .not('notified_at', 'is', null)
+      .not('doc_type', 'in', '("ordinance","resolution")')
+      .order('notified_at', { ascending: false })
+      .limit(30)
+  ]);
+
+  if (deepResult.error) throw new Error(`Failed to fetch recent ordinances: ${deepResult.error.message}`);
+  if (bulkResult.error) throw new Error(`Failed to fetch recent notices: ${bulkResult.error.message}`);
+
+  const deepItems = deepResult.data || [];
+  const bulkItems = bulkResult.data || [];
+
+  if (deepItems.length === 0 && bulkItems.length === 0) {
+    return { items: [], devNotices: [], notices: [], weekDate: '' };
+  }
+
+  // Use the most recent notified_at across both sets as the week date
+  const allDates = [...deepItems, ...bulkItems].map(r => new Date(r.notified_at));
+  const mostRecent = new Date(Math.max(...allDates));
+  const weekDate = mostRecent.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+
+  // Tier 2: Deep analysis for ordinances/resolutions (cap to avoid too many calls)
+  const relevantItems = [];
+  const toAnalyze = deepItems.slice(0, MAX_WELCOME_DEEP_ITEMS);
+  for (let i = 0; i < toAnalyze.length; i += CONCURRENCY) {
+    const batch = toAnalyze.slice(i, i + CONCURRENCY);
+    const results = await Promise.allSettled(
+      batch.map(async (ord) => {
+        const text = ord.full_text || ord.title;
+        const analysis = await analyzeOrdinance(text, profile);
+        return { ord, analysis };
+      })
+    );
+
+    for (const result of results) {
+      if (result.status === 'fulfilled') {
+        const { ord, analysis } = result.value;
+        if (analysis.relevance_score >= MIN_RELEVANCE_SCORE) {
+          relevantItems.push({
+            ...analysis,
+            ordinance_id: ord.id,
+            doc_type: ord.doc_type,
+            source_url: ord.source_url || null,
+            meeting_url: ord.meeting_url || null
+          });
+        }
+      }
+    }
+  }
+
+  // Tier 1: Bulk filter for community notices + development items
+  let relevantNotices = [];
+  if (bulkItems.length > 0) {
+    try {
+      const filtered = await bulkFilterItems(bulkItems, profile);
+      relevantNotices = filtered.map(f => ({
+        ...f,
+        ordinance_id: bulkItems[f.index]?.id,
+        doc_type: bulkItems[f.index]?.doc_type || 'notice',
+        source_url: bulkItems[f.index]?.source_url || null,
+        meeting_url: bulkItems[f.index]?.meeting_url || null,
+        ward: bulkItems[f.index]?.ward || null,
+        current_state: bulkItems[f.index]?.current_state || null,
+        is_notice: true
+      }));
+    } catch (err) {
+      console.warn(`Welcome bulk filter failed: ${err.message}`);
+    }
+  }
+
+  // Split bulk results into development vs community notices
+  const devNotices = relevantNotices.filter(n => DEVELOPMENT_TYPES.has(n.doc_type));
+  const communityNotices = relevantNotices.filter(n => !DEVELOPMENT_TYPES.has(n.doc_type));
+
+  // Sort and cap
+  relevantItems.sort((a, b) => b.relevance_score - a.relevance_score);
+
+  return {
+    items: relevantItems.slice(0, MAX_WELCOME_DEEP_ITEMS),
+    devNotices: devNotices.slice(0, MAX_WELCOME_DEV),
+    notices: communityNotices.slice(0, MAX_WELCOME_NOTICES),
+    weekDate
+  };
+}
+
+module.exports = { sendDigest, buildDigestHtml, buildItemHtml, buildDevelopmentHtml, buildNoticeHtml, buildWelcomeHtml, buildWelcomeDigest, generateSubjectLine, COUNCIL_REPS };
