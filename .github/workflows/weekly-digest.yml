@@ -2,8 +2,8 @@ name: Weekly Digest
 
 on:
   schedule:
-    # Temporarily Friday at 1pm UTC (8am ET) for testing — change back to Thursday (4) after
-    - cron: '0 13 * * 5'
+    # Every Thursday at 1pm UTC (8am ET)
+    - cron: '0 13 * * 4'
   workflow_dispatch: # Allow manual trigger from GitHub UI
 
 jobs:
