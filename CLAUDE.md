@@ -83,8 +83,17 @@ node test/test-claude-prompt.js  # verify Claude returns valid JSON
 node test/test-email.js          # send test digest email
 
 # Deploy
-vercel deploy --prod --yes
+vercel deploy              # preview deploy — test at the generated URL before going live
+vercel deploy --prod --yes # production deploy to mybloc.co — only after preview testing
 ```
+
+### Deployment Workflow
+
+1. **Test locally** — run component tests and `test-full-pipeline.js` with `TEST_EMAIL`
+2. **Preview deploy** — `vercel deploy` (no `--prod`) creates a temporary URL (e.g., `civicpulse-abc123.vercel.app`). Test signup, welcome email, API endpoints there. Uses the same Vercel env vars and Supabase DB as production.
+3. **Production deploy** — once the preview checks out, `vercel deploy --prod --yes` pushes to `mybloc.co`
+
+Always preview-deploy API and email template changes before going to production. Script-only changes (digest pipeline, fetchers) don't need a Vercel deploy — they run via GitHub Actions.
 
 ## Environment Variables
 
